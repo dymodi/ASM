@@ -5,10 +5,7 @@
 nu = 2;     % Number of inputs variables
 ny = 2;     % Number of outputs variables
 nx = 4;     % Number of states varaibles
-A = random(nx,nx);  % State transfer matrix;
-B = random(nx,nu);  % Input matrix;
-C = random(ny,nx);  % Outputs matrix
-D = zeros(ny,nu);   
+
 Ts = 0.05;          % Sampling time
 Nsim = 100;         % Simulation length
 P = 30;             % Prediction horizon
