@@ -10,17 +10,17 @@ if indexCons <= nu*M
     end
 elseif indexCons <= 2*nu*M
     nId = mod(indexCons,nu)+nu;
-    if nId == 0
+    if nId == nu
         nId = 2*nu;
     end
 elseif indexCons <= (2*nu*M+ny*P)
     nId = mod(indexCons-2*nu*M,ny)+2*nu;
-    if nId == 0
+    if nId == 2*nu
         nId = 2*nu+ny;
     end
 else
     nId = mod(indexCons-2*nu*M,ny)+2*nu+ny;
-    if nId == 0
+    if nId == 2*nu+ny
         nId = 2*nu+2*ny;
     end
 end
