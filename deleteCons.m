@@ -55,21 +55,29 @@ else
     
 end
 
+hasDelete = 0;
 for i = 1:length(consInfoNum)
     if consInfoNum(i) > 0
         if (consInfo(consInfoNum(i),i) >= indexCons)
             for j = 1:consInfoNum(i)
                 if (consInfo(j,i) == indexCons)
+                    hasDelete = 1;
                     for k = j+1:consInfoNum(i)
                         consInfo(k-1,i) = consInfo(k,i);
                     end
                     consInfo(consInfoNum(i),i) = 0;
                     consInfoNum(i) = consInfoNum(i) - 1;
                 end                
-            end
-            break;
+            end            
         end        
-    end    
+    end   
+    if hasDelete == 1
+        break;
+    end
+end
+
+if hasDelete == 0
+    error('Delete error!');
 end
 
 end

@@ -1,13 +1,13 @@
 %% Generate and simulate MPC problems based on given nu,ny,A,B,C,D
 
 
-function [maxIterASM,avgIterASM,maxIterNew,avgIterNew] = generateMPC(nu,ny,nx,A,B,C,D,Ts,Nsim,P,M,Q,R)
+function [maxIterASM,avgIterASM,maxIterNew,avgIterNew,ucTimes,tightTimes,failTimesASM,failTimesNew] = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R)
 
 
 %% Define Aircraft Model
 
-plant = ss(A,B,C,D);
-disPlant = c2d(plant,Ts);
+csys = rss(nx,ny,nu);
+disPlant = c2d(csys,Ts);
 Ad = disPlant(1,1).a;
 Bd = zeros(nx,nu);
 for i = 1:nu
@@ -17,7 +17,7 @@ Cd = zeros(ny,nx);
 for i = 1:ny
     Cd(i,:) = disPlant(i,:).c;
 end
-Dd = D;
+Dd = zeros(ny,nu);
 
 % Transform the model based on u to the model based on delta_u
 [A_e,B_e,C_e] = augment(Ad,Bd,Cd,Dd);
@@ -43,14 +43,48 @@ for i = 1:nu*M
     end
 end
 % Constraints with delta_u, u and y
-% OMEGA_L = [II;-II;B;-B;Phi;-Phi];   
+OMEGA_L = [II;-II;B;-B;Phi;-Phi];   
 % Constraints with delta_u, and u
 % OMEGA_L = [II;-II;B;-B];
 % Constraints with u and y
-OMEGA_L = [B;-B;Phi;-Phi];
-delta_U_p_ = [1;1];delta_U_n_ = [-1;-1];     
-U_p_ = [25;25]; U_n_ = [-25;-25];            
-Y_p_ = [0.5;100]; Y_n_ = [-0.5;-100];        
+% OMEGA_L = [B;-B;Phi;-Phi];
+% Constraints specifications
+Umax = 2;
+Umin = -2;
+delta_U_p_ = 1.5*ones(nu,1);
+delta_U_n_ = -1.5*ones(nu,1);
+U_p_ = Umax*ones(nu,1);
+U_n_ = Umin*ones(nu,1);
+info = stepinfo(csys);
+Yinfo = zeros(ny,nu);
+for i = 1: ny
+    for j = 1:nu
+        Yinfo(i,j) = 0.5*(info(i,j).SettlingMin+info(i,j).SettlingMax);
+    end
+end
+if max(max(isnan(Yinfo))) == 1      % The process is unstabel
+    Ymax = 100;
+    Ymin = -100;
+else
+    Ymax = max(max(Yinfo));
+    Ymin = min(min(Yinfo));
+end
+yCoef = 5;
+if Ymax > 0
+    Y_p_ = Ymax*yCoef*ones(ny,1);
+else
+    Y_p_ = Ymax/yCoef*ones(ny,1);
+end
+if Ymin < 0
+    Y_n_ = Ymin*yCoef*ones(ny,1);
+else
+    Y_n_ = Ymin/yCoef*ones(ny,1);
+end
+% % The followings are sample constraints for flight control
+% delta_U_p_ = [1;1];delta_U_n_ = [-1;-1];     
+% U_p_ = [25;25]; U_n_ = [-25;-25];            
+% Y_p_ = [0.5;100]; Y_n_ = [-0.5;-100]
+
 % Constraints augment
 delta_U_p=[];delta_U_n=[];U_p=[];U_n=[];Y_p=[];Y_n=[];
 for k = 1:M
@@ -65,19 +99,28 @@ for k = 1:P
 end
 
 %% Output reference
-Yr = [zeros(1,Nsim);zeros(1,Nsim/4),10*ones(1,Nsim/4*3)];
-rr = [];
+% The following is sample reference for flight control
+% Yr = [zeros(1,Nsim);zeros(1,Nsim/4),10*ones(1,Nsim/4*3)];
+% rr = [];
+% for i = 1:P
+%     rr = [rr;Yr];
+% end
+
+% The following generate a random reference
+rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
+r_k = [];
 for i = 1:P
-    rr = [rr;Yr];
+    r_k = [r_k;rrEle];
 end
 
+
 %% Simulation Initialization
-[n,n_in] = size(B_e);           % Dimenson of states
+[n,~] = size(B_e);           % Dimenson of states
 xm = zeros(nx,1);               % xm is based on x
 x_k = zeros(n,1);               % x_k is based on delta_x
 u_k = zeros(nu,1);              % input
 y_k = zeros(ny,1);              % output
-delta_u = 0*ones(nu,1);         % 
+delta_u = 0*ones(nu,1); 
 u_k_1 = zeros(nu,1);            % u(k-1)
 u_k_2 = zeros(nu,1);            % u(k-2)
 delta_u2 = zeros(nu,1);
@@ -94,118 +137,157 @@ delta_u_uc_draw = zeros(Nsim,nu);
 y_draw = zeros(Nsim,ny);
 x_draw = zeros(n,Nsim);
 u_draw = zeros(Nsim,nu);
-Iter_rec= [];
 invG = inv(G);
 diff_ASM_QUAD = [];
-delta_u_M_out = zeros(nu*M,1);
 iter_ASM = [];
 iter_ASM_cs = [];
 iter_ASM_ws = [];
 finalAS = [];
+ucTimes = 0;
+tightTimes = 0;
+failTimesASM = 0;
+failTimesNew = 0;
 
 % Simulation
 for kk = 1:Nsim;
-    r_k = rr(:,kk);        %对k时刻的参考轨迹进行更新
-    %% 修改这个地方，把MPC_v3里的计算过程显式地写在下面，这样也可以不用什么全局变量了
-    %[delta_u,delta_u_M_in,u_k,y_k,x_k,delta_u_ini,y_ini,lambda_ini] = mpc_v3(delta_u,delta_u_ini,u_k,y_k,x_k,r_k,delta_u_ini,y_ini,lambda_ini);%调用MPC在线算法进行计算
-    %预测
-    x_k = A_e * x_k + B_e * (u_k_1 - u_k_2);
-    %矫正
-    x_k = x_k + L * (y_k - C_e * x_k);
+    %r_k = rr(:,kk);        %对k时刻的参考轨迹进行更新   
+    
+%     % Update x_k in normal simulation
+%     x_k = A_e * x_k + B_e * (u_k_1 - u_k_2);    % Prediction
+%     x_k = x_k + L * (y_k - C_e * x_k);          % Correction
+    
+    % Generate random x_k and u_k_1
+    x_k = 0.4*rand(n,1)-0.2*ones(n,1);
+    u_k_1 = 0.8*((Umax-Umin)*rand(nu,1)+Umin*ones(nu,1));
+    
     aug_u_k_1 = [];
     for k = 1:M
         aug_u_k_1 = [aug_u_k_1;u_k_1];
     end
-    %带被控变量不带控制增量的约束
-    omega_r = [U_p-aug_u_k_1;-U_n+aug_u_k_1;Y_p-F*x_k;-Y_n+F*x_k];
+    
+    % Constraints with delta_u, u and y
+    omega_r = [delta_U_p;-delta_U_n;U_p-aug_u_k_1;-U_n+aug_u_k_1;Y_p-F*x_k;-Y_n+F*x_k];
+    % Constraints with u and y
+    % omega_r = [U_p-aug_u_k_1;-U_n+aug_u_k_1;Y_p-F*x_k;-Y_n+F*x_k];
+    % Constraints with delta_u, and u
+    % omega_r = [delta_U_p;-delta_U_n;U_p-aug_u_k_1;-U_n+aug_u_k_1];
+        
     c = (F*x_k-r_k)'*Q*eye(ny*P,ny*P)*Phi;
     c = c';
-        
+            
+    delta_u_M_out = quadprog(G,c,OMEGA_L,omega_r);
+    if isempty(delta_u_M_out)
+        tightTimes = tightTimes + 1;
+        continue;  
+    end
+    
+    % Here we check wether it's a unconstrained problem
+    if min(abs(OMEGA_L*delta_u_M_out-omega_r)) > 1e-5 
+        ucTimes = ucTimes + 1;
+        continue;
+    end
     
     %Phase I
-    x_ini = delta_u_M_out;    % Use the solution of last MPC iteration as a guess of the initial value
+    x_ini = zeros(nu*M,1);    % Use the solution of last MPC iteration as a guess of the initial value
     if max(OMEGA_L*x_ini-omega_r) > 1e-8
         x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
     end
     if max(OMEGA_L*x_ini-omega_r) > 1e-8
-        error('Correction failed!')
+        tightTimes = tightTimes + 1;
+        continue;
+        %error('Correction failed!')
     end
-    [delta_u_M_out_asm,~,iter,finalAS_right] = asm(G,invG,c,-OMEGA_L,-omega_r,x_ini,[],200);
+    
+    [delta_u_M_out_asm,~,iter,finalAS_right,failFlag] = asm(G,invG,c,-OMEGA_L,-omega_r,x_ini,[],200);       
     iter_ASM = [iter_ASM;iter];
     
+   if failFlag == 1 || norm(delta_u_M_out_asm-delta_u_M_out) > 1e-3
+        failTimesASM = failTimesASM + 1;
+        disp('ASM failes!');
+        %error('ASM failes!');
+    end
+    
     %Phase I
-    x_ini = delta_u_M_out;    % Use the solution of last MPC iteration as a guess of the initial value
+    x_ini = zeros(nu*M,1);    % Use the solution of last MPC iteration as a guess of the initial value
     if max(OMEGA_L*x_ini-omega_r) > 1e-8
         x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
     end
     if max(OMEGA_L*x_ini-omega_r) > 1e-8
         error('Correction failed!')
     end
-    [delta_u_M_out_asm_cs,~,iter,~] = asm_cs_flight(G,invG,c,-OMEGA_L,-omega_r,x_ini,[],200,ny,nu,M,P);
+    [delta_u_M_out_asm_cs,~,iter,~,failFlag] = asm_cs_flight(G,invG,c,-OMEGA_L,-omega_r,x_ini,[],200,ny,nu,M,P);
     iter_ASM_cs = [iter_ASM_cs;iter];
     
-    % Initial point based on previous optimal active set
-    % Phase I
-    x_ini = delta_u_M_out;    % Use the solution of last MPC iteration as a guess of the initial value
-    %if max(OMEGA_L*x_ini-omega_r) > 1e-8
-        if isempty(finalAS)
-            x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
-        else
-            Aeq = [];
-            beq = [];
-            finalASuseToformAeq = finalAS;
-            for j=1:length(finalAS)
-                Aeq = [Aeq;OMEGA_L(finalAS(j),:)];
-                beq = [beq;omega_r(finalAS(j),:)];
-            end
-            x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r,Aeq,beq);
-        end
-    %end
-    if (isempty(x_ini)) || (max(OMEGA_L*x_ini-omega_r) > 1e-8)
-        x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
-        finalAS = [];
-        if max(OMEGA_L*x_ini-omega_r) > 1e-8
-            error('Correction failed!')
-        end
-    end
-    oldfinalAS = finalAS;
-    %[delta_u_M_out_asm_ws,~,iter,finalAS] = asm(G,invG,c,-OMEGA_L,-omega_r,x_ini,finalAS,200);
-    [delta_u_M_out_asm_ws,~,iter,finalAS] = asm_cs_flight(G,invG,c,-OMEGA_L,-omega_r,x_ini,finalAS,200,ny,nu,M,P);   
-    iter_ASM_ws = [iter_ASM_ws;iter];
-    
-    delta_u_M_out = quadprog(G,c,OMEGA_L,omega_r);
+%     % Initial point based on previous optimal active set
+%     % Phase I
+%     x_ini = delta_u_M_out;    % Use the solution of last MPC iteration as a guess of the initial value
+%     %if max(OMEGA_L*x_ini-omega_r) > 1e-8
+%         if isempty(finalAS)
+%             x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
+%         else
+%             Aeq = [];
+%             beq = [];
+%             finalASuseToformAeq = finalAS;
+%             for j=1:length(finalAS)
+%                 Aeq = [Aeq;OMEGA_L(finalAS(j),:)];
+%                 beq = [beq;omega_r(finalAS(j),:)];
+%             end
+%             x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r,Aeq,beq);
+%         end
+%     %end
+%     if (isempty(x_ini)) || (max(OMEGA_L*x_ini-omega_r) > 1e-8)
+%         x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
+%         finalAS = [];
+%         if max(OMEGA_L*x_ini-omega_r) > 1e-8
+%             error('Correction failed!')
+%         end
+%     end
+%     oldfinalAS = finalAS;
+%     %[delta_u_M_out_asm_ws,~,iter,finalAS] = asm(G,invG,c,-OMEGA_L,-omega_r,x_ini,finalAS,200);
+%     [delta_u_M_out_asm_ws,~,iter,finalAS] = asm_cs_flight(G,invG,c,-OMEGA_L,-omega_r,x_ini,finalAS,200,ny,nu,M,P);   
+%     iter_ASM_ws = [iter_ASM_ws;iter];       
     
     diff = norm(delta_u_M_out_asm_cs-delta_u_M_out);
-    if diff > 1e-5
+    if failFlag == 1 || diff > 1e-3
+        failTimesNew = failTimesNew + 1;
         disp('ASM_cs fails.');
+        %error('ASM_cs fails.');
     end
     diff_ASM_QUAD = [diff_ASM_QUAD;diff];
     
-    delta_u = delta_u_M_out(1:nu,1);
-    u_k = u_k + delta_u;
-    xm = Ad*xm + Bd*u_k;    % States updating
-    y_k = Cd*xm;            % Output updating
-    u_k_2 = u_k_1;
-    u_k_1 = u_k;
+%     % The followings are used to do simulations
+%     delta_u = delta_u_M_out(1:nu,1);
+%     u_k = u_k + delta_u;
+%     xm = Ad*xm + Bd*u_k;    % States updating
+%     y_k = Cd*xm;            % Output updating
+%     u_k_2 = u_k_1;
+%     u_k_1 = u_k;
     
     % Records for drawing
     delta_u_draw(kk,:) = delta_u';
     u_draw(kk,:) = u_k';
     y_draw(kk,:) = y_k';          
     x_draw(1,kk) = x_k(1,1);x_draw(2,kk) = x_k(2,1);x_draw(3,kk) = x_k(3,1);x_draw(4,kk) = x_k(4,1);x_draw(5,kk) = x_k(5,1); 
+
 end
 
-% Drawing
-figure;
-subplot(2,1,1); plot(y_draw(:,1),'LineWidth',2); title('y(k)');
-hold on; plot(y_draw(:,2),'LineWidth',2); 
-subplot(2,1,2); stairs(u_draw(:,1),'LineWidth',2);title('u(k)');
-hold on; stairs(u_draw(:,2),'LineWidth',2);
-figure; title('Iteration count')
-plot(iter_ASM); hold on; plot(iter_ASM_cs);
-legend('Original ASM','ASM with Constraints Selection');
-figure; title('Iteration count')
-plot(iter_ASM); hold on; plot(iter_ASM_ws);
-legend('Original ASM','ASM with Warm Start');
+maxIterASM = max(iter_ASM);
+maxIterNew = max(iter_ASM_cs);
+avgIterASM = mean(iter_ASM);
+avgIterNew = mean(iter_ASM_cs);
+
+
+% % Drawing
+% figure;
+% subplot(2,1,1); plot(y_draw(:,1),'LineWidth',2); title('y(k)');
+% hold on; plot(y_draw(:,2),'LineWidth',2); 
+% subplot(2,1,2); stairs(u_draw(:,1),'LineWidth',2);title('u(k)');
+% hold on; stairs(u_draw(:,2),'LineWidth',2);
+% figure; title('Iteration count')
+% plot(iter_ASM); hold on; plot(iter_ASM_cs);
+% legend('Original ASM','ASM with Constraints Selection');
+% figure; title('Iteration count')
+% plot(iter_ASM); hold on; plot(iter_ASM_ws);
+% legend('Original ASM','ASM with Warm Start');
 
 end

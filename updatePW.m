@@ -20,8 +20,11 @@ for i = 1:length(consInfoNum)
         end
         for j = 2:consInfoNum(i)-1
             lpW = [lpW;consInfo(j,i)];
-        end
-        
+        end        
     end        
 end
+
+hpW = sort(hpW);
+lpW = sort(lpW);
+
 end

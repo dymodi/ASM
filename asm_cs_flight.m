@@ -13,32 +13,29 @@
 % x: Iterating point
 % w：Working set
 
-
 % Output:
 % xStar: Optimal point
 % zStar: Optimal objective function
 % iterStar: Iteration count
 
-function [xStar, zStar, iterStar, finalAS] = asm_cs_flight(G,invG,c,A,b,x,w,maxIter,ny,nu,M,P)
+function [xStar, zStar, iterStar, finalAS, failFlag] = asm_cs_flight(G,invG,c,A,b,x,w,maxIter,ny,nu,M,P)
 
 [mc,ndec] = size(A);
 iterStar = 0;
+failFlag = 0;
 
 % Give Warrings if the initial point is infeasible!
 if min(A*x-b) < -1e-6
     error('Infeasible initial point!');
 end
 
-u1min = [];
-u2min = [];
-u1max = [];
-u2max = [];
-y1min = [];
-y2min = [];
-y1max = [];
-y2max = [];
-consInfo = zeros(nu*M,nu*2+ny*2);
-consInfoNum = zeros(1,nu*2+ny*2);
+% % In case we only consider constraitns on u and y
+% consInfo = zeros(nu*M,nu*2+ny*2);
+% consInfoNum = zeros(1,nu*2+ny*2);
+% In case we consider constraitns on delta_u, u and y
+consInfo = zeros(nu*M+1,nu*4+ny*2);
+consInfoNum = zeros(1,nu*4+ny*2);
+
 hpW = [];       % High priority working set
 lpW = [];       % Low priority working set
 
@@ -53,7 +50,11 @@ end
 
 for i = 1:maxIter
     if i == maxIter
-        error('maxIter reached!');
+        disp('maxIter reached!');
+        xStar = x;
+        finalAS = w;
+        failFlag = 1;
+        %error('maxIter reached!');
     end
     
     iterStar = iterStar + 1;
@@ -68,12 +69,31 @@ for i = 1:maxIter
     end
     
     % Solve equality-constrained QP problems
-    [p, ~, ~] = eqp(G,invG,g,Aw,bw,zeros(ndec,1),setSize);
+   if setSize == ndec
+       if det(Aw) > 0.000001
+           p = zeros(ndec,1);
+       else
+           [p, ~, ~] = eqp(G,invG,g,Aw,bw,zeros(ndec,1),setSize);
+       end
+   else
+       [p, ~, ~] = eqp(G,invG,g,Aw,bw,zeros(ndec,1),setSize);
+   end
     
-    if (isZero(p,1e-5) == 1)  % Check whether p_k is zero
-        lambda = linsolve(Aw',g);
-        if (setSize == 0 || min(lambda) >= 0)
-            xStar = x;
+   if (isZero(p,1e-4) == 1)  % Check whether p_k is zero
+       lambda = linsolve(Aw',g);
+       if max(isnan(lambda)) == 1
+           disp('Equation solve fails,try resolve.');
+           %error('Equation solve fails,try resolve.');
+           % 这里尝试一种修正对角线元素的方法
+           [rAw,cAw] = size(Aw);
+           lambda = linsolve((Aw+0.001*eye(rAw,cAw))',g);
+           if max(isnan(lambda)) == 1
+               error('Resolve fails.');
+           end
+           %error('Equation solve fails');
+       end
+       if (setSize == 0 || min(lambda) >= 0)
+           xStar = x;
             finalAS = w;
             if ~isempty(w)
                 disp('Not empty optimal active set.');

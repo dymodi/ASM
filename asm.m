@@ -17,10 +17,12 @@
 % zStar: 最优点对应的目标函数
 % iterStar: ASM的迭代次数
 
-function [xStar, zStar, iterStar, finalAS] = asm(G,invG,c,A,b,x,w,maxIter) 
+function [xStar, zStar, iterStar, finalAS, failFlag] = asm(G,invG,c,A,b,x,w,maxIter) 
+
 
 [mc,ndec] = size(A);
 iterStar = 0;
+failFlag = 0;
 
 % Give Warrings if the initial point is infeasible!
 if min(A*x-b) < -1e-6
@@ -32,7 +34,11 @@ end
 
 for i = 1:maxIter
     if i == maxIter
-        error('maxIter reached!');
+        failFlag = 1;
+        disp('maxIter reached!');
+        xStar = zeros(ndec,1);
+        finalAS = [];
+        %error('maxIter reached!');
     end
         
     
@@ -49,11 +55,27 @@ for i = 1:maxIter
    end
    
    % 求解等式约束命题
-   [p, ~, ~] = eqp(G,invG,g,Aw,bw,zeros(ndec,1),setSize);
+   if setSize == ndec
+       p = zeros(ndec,1);
+   else
+       [p, ~, ~] = eqp(G,invG,g,Aw,bw,zeros(ndec,1),setSize);
+   end
+    
    
-   if (isZero(p,1e-5) == 1)  % 注意这里的p是算出来的浮点数向量，不能用p是否等于0直接判断
+   if (isZero(p,1e-4) == 1)  % 注意这里的p是算出来的浮点数向量，不能用p是否等于0直接判断
        % lambda = (G*x+c)./Aw(); 
        lambda = linsolve(Aw',g);    % 这里隐含的是一个方程组求解啊……
+       if max(isnan(lambda)) == 1
+           disp('Equation solve fails,try resolve.');
+           %error('Equation solve fails,try resolve.');
+           % 这里尝试一种修正对角线元素的方法
+           [rAw,cAw] = size(Aw);
+           lambda = linsolve((Aw+0.001*eye(rAw,cAw))',g);
+           if max(isnan(lambda)) == 1
+               error('Resolve fails.');
+           end
+           %error('Equation solve fails');
+       end
        if (setSize == 0 || min(lambda) >= 0)
            xStar = x;
            finalAS = w;

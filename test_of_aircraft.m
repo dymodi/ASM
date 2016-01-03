@@ -36,7 +36,7 @@ nx = 4; nu = 2; ny = 2;
 % Create an MPC controller with plant model, sample time and horizons.
 Nsim = 100;
 P = 20;             % Prediction horizon
-M = 8;              % Control horizon
+M = 5;              % Control horizon
 Q = 10;
 R = 0.1;
 L1 = zeros(nx,ny);
@@ -212,20 +212,20 @@ for kk = 1:Nsim;
     x_draw(1,kk) = x_k(1,1);x_draw(2,kk) = x_k(2,1);x_draw(3,kk) = x_k(3,1);x_draw(4,kk) = x_k(4,1);x_draw(5,kk) = x_k(5,1); 
 end
 
-OriMax = max(iter_ASM)
-CsMax = max(iter_ASM_cs)
-OriAvg = mean(iter_ASM)
-CsAvg = mean(iter_ASM_cs)
+OriMax = max(iter_ASM);
+CsMax = max(iter_ASM_cs);
+OriAvg = mean(iter_ASM);
+CsAvg = mean(iter_ASM_cs);
 
-% % Drawing
-% figure;
-% subplot(2,1,1); plot(y_draw(:,1),'LineWidth',2); title('y(k)');
-% hold on; plot(y_draw(:,2),'LineWidth',2); 
-% subplot(2,1,2); stairs(u_draw(:,1),'LineWidth',2);title('u(k)');
-% hold on; stairs(u_draw(:,2),'LineWidth',2);
-% figure; title('Iteration count')
-% plot(iter_ASM); hold on; plot(iter_ASM_cs);
-% legend('Original ASM','ASM with Constraints Selection');
-% figure; title('Iteration count')
-% plot(iter_ASM); hold on; plot(iter_ASM_ws);
-% legend('Original ASM','ASM with Warm Start');
+% Drawing
+figure;
+subplot(2,1,1); plot(y_draw(:,1),'LineWidth',2); title('y(k)');
+hold on; plot(y_draw(:,2),'LineWidth',2); 
+subplot(2,1,2); stairs(u_draw(:,1),'LineWidth',2);title('u(k)');
+hold on; stairs(u_draw(:,2),'LineWidth',2);
+figure; title('Iteration count')
+plot(iter_ASM); hold on; plot(iter_ASM_cs);
+legend('Original ASM','ASM with Constraints Selection');
+figure; title('Iteration count')
+plot(iter_ASM); hold on; plot(iter_ASM_ws);
+legend('Original ASM','ASM with Warm Start');
