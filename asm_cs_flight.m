@@ -1,5 +1,5 @@
 % A Practical ASM function
-% Solve£ºz = 1/2x'Gx + c'x, s.t. Ax>b
+% SolveÂ£Âºz = 1/2x'Gx + c'x, s.t. Ax>b
 % This is a version with constraints seletion, based on Gionata's idea
 % 2015.12.21
 % Yi
@@ -11,7 +11,7 @@
 % A: QP parameters (Constraints matrix)
 % b: QP parameters (Constraints vector)
 % x: Iterating point
-% w£ºWorking set
+% wÂ£ÂºWorking set
 
 
 % Output:
@@ -29,14 +29,6 @@ if min(A*x-b) < -1e-6
     error('Infeasible initial point!');
 end
 
-u1min = [];
-u2min = [];
-u1max = [];
-u2max = [];
-y1min = [];
-y2min = [];
-y1max = [];
-y2max = [];
 consInfo = zeros(nu*M,nu*2+ny*2);
 consInfoNum = zeros(1,nu*2+ny*2);
 hpW = [];       % High priority working set
