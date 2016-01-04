@@ -28,9 +28,6 @@ else
                 minLambdaHp = lambda(j);
                 minIndexHp = indexHpW;
                 indexWforHpW = j;
-%                 if minLambdaHp < -0.0000001
-%                     break;      % 只要HP对于的lambda有小于0的就可以退出了
-%                 end
             end
             indexHpW = indexHpW + 1;
         else
@@ -55,6 +52,7 @@ else
     
 end
 
+%% Here we update consInfo
 hasDelete = 0;
 for i = 1:length(consInfoNum)
     if consInfoNum(i) > 0
@@ -75,7 +73,6 @@ for i = 1:length(consInfoNum)
         break;
     end
 end
-
 if hasDelete == 0
     error('Delete error!');
 end

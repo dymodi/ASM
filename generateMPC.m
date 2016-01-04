@@ -1,5 +1,5 @@
 %% Generate and simulate MPC problems based on given parameters
-
+% 2015.12.30
 
 function [maxIterASM,avgIterASM,maxIterNew,avgIterNew,ucTimes,tightTimes,...
     failTimesASM,failTimesNew] = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R)
@@ -48,10 +48,10 @@ end
 % Constraints with u and y
 OMEGA_L = [B;-B;Phi;-Phi];
 % Constraints specifications
-Umax = 1;
-Umin = -1;
-delta_U_p_ = 1.5*ones(nu,1);
-delta_U_n_ = -1.5*ones(nu,1);
+Umax = 1.5;
+Umin = -1.5;
+delta_U_p_ = 1*ones(nu,1);
+delta_U_n_ = -1*ones(nu,1);
 U_p_ = Umax*ones(nu,1);
 U_n_ = Umin*ones(nu,1);
 info = stepinfo(csys);
@@ -68,7 +68,7 @@ else
     Ymax = max(max(Yinfo));
     Ymin = min(min(Yinfo));
 end
-yCoef = 5;
+yCoef = 1;
 if Ymax > 0
     Y_p_ = Ymax*yCoef*ones(ny,1);
 else
@@ -104,14 +104,6 @@ end
 % for i = 1:P
 %     rr = [rr;Yr];
 % end
-
-% The following generate a random reference
-% rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
-rrEle = rand(ny,1)-0.5*ones(ny,1);
-r_k = [];
-for i = 1:P
-    r_k = [r_k;rrEle];
-end
 
 
 %% Simulation Initialization
@@ -158,9 +150,16 @@ for kk = 1:Nsim;
     
     % Generate random x_k and u_k_1
     x_k = 0.4*rand(n,1)-0.2*ones(n,1);
-    %u_k_1 = 0.7*((Umax-Umin)*rand(nu,1)+Umin*ones(nu,1));
+    % u_k_1 = 0.7*((Umax-Umin)*rand(nu,1)+Umin*ones(nu,1));
     u_k_1 = zeros(nu,1);
-    
+    % The following generate a random reference
+    rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
+    % rrEle = 1.8*rand(ny,1)-0.9*ones(ny,1);
+    r_k = [];
+    for i = 1:P
+        r_k = [r_k;rrEle];
+    end
+        
     aug_u_k_1 = [];
     for k = 1:M
         aug_u_k_1 = [aug_u_k_1;u_k_1];
@@ -173,7 +172,7 @@ for kk = 1:Nsim;
     omega_r = [U_p-aug_u_k_1;-U_n+aug_u_k_1;Y_p-F*x_k;-Y_n+F*x_k];
     % Constraints with delta_u, and u
     % omega_r = [delta_U_p;-delta_U_n;U_p-aug_u_k_1;-U_n+aug_u_k_1];
-        
+    
     c = (F*x_k-r_k)'*Q*eye(ny*P,ny*P)*Phi;
     c = c';
             
@@ -202,7 +201,7 @@ for kk = 1:Nsim;
     end    
     % Solve the problem with original primal ASM
     [delta_u_M_out_asm,~,iter,finalAS_right,failFlag] = asm(G,...
-        invG,c,-OMEGA_L,-omega_r,x_ini,[],200);       
+        invG,c,-OMEGA_L,-omega_r,x_ini,[],300);       
     iter_ASM = [iter_ASM;iter];
     
    if failFlag == 1 || norm(delta_u_M_out_asm-delta_u_M_out) > 1e-3
@@ -220,8 +219,8 @@ for kk = 1:Nsim;
         error('Correction failed!')
     end
     % Solve the problem with ASM based on constraints selection
-    [delta_u_M_out_asm_cs,~,iter,~,failFlag] = asm_cs_flight(G,...
-        invG,c,-OMEGA_L,-omega_r,x_ini,[],200,ny,nu,M,P);
+    [delta_u_M_out_asm_cs,~,iter,~,failFlag] = asm_cs(G,...
+        invG,c,-OMEGA_L,-omega_r,x_ini,[],300,ny,nu,M,P);
     iter_ASM_cs = [iter_ASM_cs;iter];
         
     diff = norm(delta_u_M_out_asm_cs-delta_u_M_out);
@@ -234,7 +233,7 @@ for kk = 1:Nsim;
     
 %     % Initial point based on previous optimal active set
 %     % Phase I
-%     x_ini = delta_u_M_out;    % Use the solution of last MPC iteration as a guess of the initial value
+%     x_ini = delta_u_M_out;
 %     %if max(OMEGA_L*x_ini-omega_r) > 1e-8
 %         if isempty(finalAS)
 %             x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
@@ -273,7 +272,8 @@ for kk = 1:Nsim;
     delta_u_draw(kk,:) = delta_u';
     u_draw(kk,:) = u_k';
     y_draw(kk,:) = y_k';          
-    x_draw(1,kk) = x_k(1,1);x_draw(2,kk) = x_k(2,1);x_draw(3,kk) = x_k(3,1);x_draw(4,kk) = x_k(4,1);x_draw(5,kk) = x_k(5,1); 
+    x_draw(1,kk) = x_k(1,1);x_draw(2,kk) = x_k(2,1);x_draw(3,kk) = x_k(3,1);
+    x_draw(4,kk) = x_k(4,1);x_draw(5,kk) = x_k(5,1); 
 
 end
 
@@ -285,15 +285,17 @@ avgIterNew = mean(iter_ASM_cs);
 
 % % Drawing
 % figure;
+% rr_draw = rrEle*ones(1,Nsim);
 % subplot(2,1,1); plot(y_draw(:,1),'LineWidth',2); title('y(k)');
 % hold on; plot(y_draw(:,2),'LineWidth',2); 
+% hold on; plot(rr_draw(1,:)); hold on; plot(rr_draw(2,:)); 
 % subplot(2,1,2); stairs(u_draw(:,1),'LineWidth',2);title('u(k)');
 % hold on; stairs(u_draw(:,2),'LineWidth',2);
 % figure; title('Iteration count')
 % plot(iter_ASM); hold on; plot(iter_ASM_cs);
 % legend('Original ASM','ASM with Constraints Selection');
-% figure; title('Iteration count')
-% plot(iter_ASM); hold on; plot(iter_ASM_ws);
-% legend('Original ASM','ASM with Warm Start');
+% % % figure; title('Iteration count')
+% % % plot(iter_ASM); hold on; plot(iter_ASM_ws);
+% % % legend('Original ASM','ASM with Warm Start');
 
 end

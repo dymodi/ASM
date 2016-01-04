@@ -1,20 +1,34 @@
-% A Practical Primal Active Set Method
-% Algorithm based on book Numerical Optimization
+% A Practical Dual Active Set Method
+% Primal algorithm based on the book Numerical Optimization
+% Dual analysis based on the book Practical Optimization
 % z = 1/2x'Gx + c'x, s.t. Ax>b
-% 2014.12.6
+% 2016.1.4
 % Yi DING
 % Input:
-% x: Primal feasible starting point
+% x: Dual feasible starting point (Can be empty)
 % w£ºInitial working set
 % Output:
 % xStar: Optimal variable
 % zStar: Optimal objective function value
 % iterStar: Iteration count
+% Note, dual ASM solves the dual problem using primal ASM
 
-function [xStar, zStar, iterStar, finalAS, failFlag] = asm(G,invG,c,A,b,x,w,maxIter)
 
+function [xStar, zStar, iterStar, finalAS, failFlag] = asm_dual(H,invH,oric,oriA,b,x,w,maxIter)
 
-[mc,ndec] = size(A);
+%% Here we form the dual problem
+[mc,~] = size(oriA);
+if isempty(x)
+    x = -invH*oric;
+    x = linsolve(oriA',H*x+oric);
+end
+G = oriA*invH*oriA';
+invG = inv(G);
+c = oriA*invH*oric+b;
+A = eye(mc,mc);
+b = zeros(mc,1);
+ndec = mc;
+
 iterStar = 0;
 failFlag = 0;
 
@@ -84,27 +98,19 @@ for i = 1:maxIter
             bnotw(j) = b(notW(j));
         end
         
-        %% Compute Step length alpha
-        %numAlpha = 0;
-        hasFirst = 0;
-        %minAlpha = 1;
+        %% Compute Step length alpha       
+        minAlpha = 1;
         for j = 1:mc-setSize
-            ap = Anotw(j,:)*p;
-            if (ap < 0)
-                if (hasFirst == 0)
-                    minAlpha = (bnotw(j)-Anotw(j,:)*x)/ap;
-                    indexMin = j;
-                    hasFirst = 1;
-                else
-                    tmpAlpha = (bnotw(j)-Anotw(j,:)*x)/ap;                    
-                    if (tmpAlpha < minAlpha)
-                        minAlpha = tmpAlpha;
-                        indexMin = j;
-                    end
+            index = notW(j);
+            if p(index) < 0     % If p(index) > 0, constraint will meet
+                tmpAlpha = -x(index)/p(index);
+                if tmpAlpha < minAlpha
+                    minAlpha = tmpAlpha;
                 end
             end
+            
         end
-        alpha = min([1,minAlpha]);
+        alpha = max([min([1,minAlpha]),0]);
         x = x + alpha * p;
         if (alpha < 1)
             %% Add blocking constraint to working set
@@ -116,5 +122,7 @@ for i = 1:maxIter
     end
 end
 
+%% Here we transform the dual optimal to primal optimal
+xStar = invH(oriA'*xStar-oric);
 zStar = 1/2*xStar'*G*xStar + c'*xStar;
 end
