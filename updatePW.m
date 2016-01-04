@@ -7,20 +7,21 @@ function [hpW,lpW] = updatePW(consInfo,consInfoNum)
 hpW = []; lpW = [];
 for i = 1:length(consInfoNum)
     if consInfoNum(i) > 0        
-%         % Only Consider no-antecedent
-%         hpW = [hpW;consInfo(1,i)];
-%         for j = 2:consInfoNum(i)
-%             lpW = [lpW;consInfo(j,i)];
-%         end
-        
-        % Consider both no-antecedent and no-successive
+        % Only Consider no-antecedent
         hpW = [hpW;consInfo(1,i)];
-        if consInfoNum(i) > 1
-            hpW = [hpW;consInfo(consInfoNum(i),i)];
-        end
-        for j = 2:consInfoNum(i)-1
+        for j = 2:consInfoNum(i)
             lpW = [lpW;consInfo(j,i)];
-        end        
+        end
+
+%         % Consider both no-antecedent and no-successive
+%         hpW = [hpW;consInfo(1,i)];
+%         if consInfoNum(i) > 1
+%             hpW = [hpW;consInfo(consInfoNum(i),i)];
+%         end
+%         for j = 2:consInfoNum(i)-1
+%             lpW = [lpW;consInfo(j,i)];
+%         end        
+
     end        
 end
 

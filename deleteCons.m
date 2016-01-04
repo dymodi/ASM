@@ -28,9 +28,9 @@ else
                 minLambdaHp = lambda(j);
                 minIndexHp = indexHpW;
                 indexWforHpW = j;
-                if minLambdaHp < -0.0000001
-                    break;      % 只要HP对于的lambda有小于0的就可以退出了
-                end
+%                 if minLambdaHp < -0.0000001
+%                     break;      % 只要HP对于的lambda有小于0的就可以退出了
+%                 end
             end
             indexHpW = indexHpW + 1;
         else

@@ -1,5 +1,5 @@
 % A Practical ASM function
-% Solve£ºz = 1/2x'Gx + c'x, s.t. Ax>b
+% Solve: z = 1/2x'Gx + c'x, s.t. Ax>b
 % This is a version with constraints seletion, based on Gionata's idea
 % 2015.12.21
 % Yi
@@ -11,7 +11,7 @@
 % A: QP parameters (Constraints matrix)
 % b: QP parameters (Constraints vector)
 % x: Iterating point
-% w£ºWorking set
+% w: Working set
 
 % Output:
 % xStar: Optimal point
