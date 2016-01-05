@@ -63,7 +63,8 @@ for i = 1:maxIter
     if setSize == ndec
         p = zeros(ndec,1);
     else
-        [p, ~, ~] = eqp(G,invG,g,Aw,bw,zeros(ndec,1),setSize);
+        %[p, ~, ~] = eqp(G,invG,g,Aw,bw,zeros(ndec,1),setSize);
+        [p, ~] = eqp_ns(G,g,Aw,bw,zeros(ndec,1),w) ;
     end
     
     
