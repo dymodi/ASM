@@ -35,8 +35,8 @@ nx = 4; nu = 2; ny = 2;
 %% Control parameters
 % Create an MPC controller with plant model, sample time and horizons.
 Nsim = 100;
-P = 20;             % Prediction horizon
-M = 5;              % Control horizon
+P = 10;             % Prediction horizon
+M = 2;              % Control horizon
 Q = 10;
 R = 0.1;
 L1 = zeros(nx,ny);
@@ -165,12 +165,12 @@ for kk = 1:Nsim;
         disp('ASM_cs fails.');
     end
     diff_ASM_QUAD = [diff_ASM_QUAD;diff];
-    
-    [delta_u_M_out_asm_cs,~,iter,~] = asm_dual(G,invG,c,-OMEGA_L,-omega_r,[],[],200);
+       
+    [delta_u_M_out_asm_dual, iter, ~, failFlag] = asm_dual(G,inv(G),c,-OMEGA_L,-omega_r,[],[],200);
     iter_ASM_dual = [iter_ASM_dual;iter];
     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
-    if diff > 1e-5
-        disp('ASM_dual fails.');
+    if diff > 1e-6
+        error('ASM_dual fails.');
     end
     diff_ASM_QUAD_dual = [diff_ASM_QUAD_dual;diff];
         

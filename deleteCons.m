@@ -44,7 +44,7 @@ else
         hpW(minIndexHp) = [];
         indexCons = w(indexWforHpW);
         w(indexWforHpW) = [];
-    else       
+    else
         lpW(minIndexLp) = [];
         indexCons = w(indexWforLpW);
         w(indexWforLpW) = [];

@@ -7,8 +7,8 @@ Nsim = 30;         % Simulation length
 
 Q = 10;
 R = 0.1;
-testSizeIO = 6;
-testSizeMP = 8;
+testSizeIO = 5;
+testSizeMP = 5;
 
 dataMaxIterASM = zeros(testSizeIO,testSizeMP);  % Max Iter of origin ASM
 dataMaxIterNew = zeros(testSizeIO,testSizeMP);  % Max Iter of ASM with constraints seletion

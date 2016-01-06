@@ -1,129 +1,150 @@
 % A Practical Dual Active Set Method
-% Primal algorithm based on the book Numerical Optimization
-% Dual analysis based on the book Practical Optimization
-% z = 1/2x'Gx + c'x, s.t. Ax>b
+% Dual algorithm based on Ferreau's thesis: An Online Active Set Strategy 
+% for Fast Solution of Parametric Quadratic Programs with Applications to 
+% Predictive Engine Control
+% z = 1/2x'Hx + g'x, s.t. Gx>b
 % 2016.1.4
 % Yi DING
 % Input:
-% x: Dual feasible starting point (Can be empty)
-% w£ºInitial working set
+% x: Primal variables
+% y: Dual variables
 % Output:
 % xStar: Optimal variable
-% zStar: Optimal objective function value
 % iterStar: Iteration count
-% Note, dual ASM solves the dual problem using primal ASM
 
+function [xStar, iterStar, finalAS, failFlag] = asm_dual(H,invH,g,G,b,x,y,maxIter)
 
-function [xStar, zStar, iterStar, finalAS, failFlag] = asm_dual(H,invH,oric,oriA,b,x,w,maxIter)
-
-%% Here we form the dual problem
-[mc,~] = size(oriA);
-if isempty(x)
-    x = -invH*oric;
-    x = linsolve(oriA',H*x+oric);
+%% Step 1 Initial primal and dual variable, intial active set
+[mc,ndec] = size(G);
+A = [];             % Current active set
+notA = (1:mc)';     % Current not active set
+actSize = 0;        % The cardinality of the current active set
+if isempty(x) || isempty(y)
+    x = -invH*g;
+    y = zeros(mc,1);
 end
-G = oriA*invH*oriA';
-invG = inv(G);
-c = oriA*invH*oric+b;
-A = eye(mc,mc);
-b = zeros(mc,1);
-ndec = mc;
-
-iterStar = 0;
 failFlag = 0;
+toStep3 = 0;
 
-% Give Warrings if the initial point is infeasible!
-if min(A*x-b) < -1e-6
-    error('Infeasible initial point!');
-    %display('Infeasible initial point!');
-    %return;
-end
-
-for i = 1:maxIter
-    if i == maxIter
+% Iterations
+for k = 1:maxIter
+    if k == maxIter
         failFlag = 1;
-        disp('maxIter reached!');
-        xStar = zeros(ndec,1);
-        finalAS = [];
-        %error('maxIter reached!');
+        error('Maximum iteration reached.');
     end
     
-    iterStar = iterStar + 1;
-    g = G*x+c;
-    
-    % Compute active constraints matrix accoring to w
-    setSize = length(w);
-    Aw = zeros(setSize,ndec);
-    bw = zeros(setSize,1);
-    for j = 1:setSize
-        Aw(j,:)  = A(w(j),:);
-    end
-    
-    % Solve equality constrained problem
-    if setSize == ndec
-        p = zeros(ndec,1);
-    else
-        %[p, ~, ~] = eqp(G,invG,g,Aw,bw,zeros(ndec,1),setSize);
-        [p, ~] = eqp_ns(G,g,Aw,bw,zeros(ndec,1),w) ;
-    end
-    
-    
-    if (isZero(p,1e-4) == 1)
-        %% p=0. Optimal reached or delete a constraint
-        % lambda = (G*x+c)./Aw();
-        lambda = linsolve(Aw',g);
-        if max(isnan(lambda)) == 1
-            % error('Equation solve fails,try resolve.');
-            disp('Equation solve fails,try modification.');            
-            % Some modification to help compute lambda
-            [rAw,cAw] = size(Aw);
-            lambda = linsolve((Aw+0.001*eye(rAw,cAw))',g);
-            if max(isnan(lambda)) == 1
-                error('Modification fails.');
+    %% Step 2 Choose a violated (primal) constraint
+    if toStep3 == 0
+        optFlag = 1;
+        for j = 1:length(notA)
+            i = notA(j);
+            if G(i,:)*x < b(i);    % Here we find a violated constraint
+                optFlag = 0;
+                q = i;             % Note, q is the id of the cons
+                qIndNotA = j;      
+                break;
             end
         end
-        if (setSize == 0 || min(lambda) >= 0)
+        % No primal constraint violated, optimum reached.
+        if optFlag == 1
             xStar = x;
-            finalAS = w;
-            break;
-        else
-            [~,index] = min(lambda);
-            w(index) = [];
-        end
-    else
-        notW = w2notW(w,mc);
-        Anotw = zeros(mc-setSize,ndec);
-        bnotw = zeros(mc-setSize,1);
-        for j = 1:mc-setSize
-            Anotw(j,:)  = A(notW(j),:);
-            bnotw(j) = b(notW(j));
-        end
-        
-        %% Compute Step length alpha       
-        minAlpha = 1;
-        for j = 1:mc-setSize
-            index = notW(j);
-            if p(index) < 0     % If p(index) > 0, constraint will meet
-                tmpAlpha = -x(index)/p(index);
-                if tmpAlpha < minAlpha
-                    minAlpha = tmpAlpha;
-                end
-            end
-            
-        end
-        alpha = max([min([1,minAlpha]),0]);
-        x = x + alpha * p;
-        if (alpha < 1)
-            %% Add blocking constraint to working set
-            tmpW = w;
-            w = zeros(setSize+1,1);
-            w(1:setSize) = tmpW;
-            w(setSize+1) = notW(indexMin);
+            iterStar = k;
+            finalAS = A;
+            return;
         end
     end
+
+    %% Step 3 Calculate step directions    
+    GA = zeros(length(A),ndec);
+    for j = 1:length(A)
+        GA(j,:) = G(A(j),:);
+    end
+    Wk = inv(GA*invH*GA');
+    Gq = G(q,:);
+    
+    delta_x = -(invH*GA'*Wk*GA*invH-invH)*Gq';   % Note here is different 
+    % with the substance in the thesis    
+    delta_y = -Wk*GA*invH*Gq';  % Note, length(delta_y) = length(A);
+    
+    %% Step 4 Calculate the step length
+    if isZero(delta_x,1e-3)
+        tauPrim = +Inf;
+    else
+        tauPrim = -(Gq*x-b(q))/(Gq*delta_x);     % Note here is different 
+    % with the substance in the thesis    
+    end
+    tauDual = +Inf;
+    for j = 1:length(A)
+        if delta_y(j) < 0
+            tauTmp = -y(A(j))/delta_y(j);
+            if tauTmp < tauDual
+                tauDual = tauTmp;
+                blockJ = j;     % Note here j is the index of cons in A
+            end
+        end
+    end
+    tau = min([tauPrim,tauDual]);
+    if tau < 0
+        tau = 0;
+    end
+    
+    %% Step 5 Active set update
+    if isZero(delta_x,1e-3)
+        if tauDual == Inf
+            error('QP infeasible!');
+        end
+        notA = [notA;A(blockJ)];    % Note that notA is not ordered
+        A(blockJ) = [];
+        delta_y(blockJ) = [];
+        for i = 1:length(A)
+            y(A(i)) = y(A(i)) + tau * delta_y(i);
+            if y(A(i)) < 0
+                error('Dual infeasible!');
+            end
+        end
+        y(q) = y(q) + tau;
+        toStep3 = 1;
+        continue;
+    end
+    if tau == tauPrim
+        A = [A;q];
+        notA(qIndNotA) = [];
+        % A = sort(A);          % Do we need A to be ordered?
+        % Also note that if we force the order in A, then the new added
+        % cons q may not be located in the last position, thus the next
+        % for loop is wrong
+        x = x + tau * delta_x;  % Note that x keep original order
+        for i = 1:length(A)-1
+            y(A(i)) = y(A(i)) + tau * delta_y(i);
+            if y(A(i)) < 0
+                error('Dual infeasible!');
+            end
+        end
+        y(q) = y(q) + tau;
+        toStep3 = 0;
+    elseif tau == tauDual
+        notA = [notA;A(blockJ)];    % Note that notA is not ordered
+        A(blockJ) = [];
+        delta_y(blockJ) = [];
+        x = x + tau * delta_x;  % Note here is different with the thesis
+        % x = x + delta_x;  % This is Ferreau's version
+        for i = 1:length(A)
+            y(A(i)) = y(A(i)) + tau * delta_y(i);
+            if y(A(i)) < 0
+                error('Dual infeasible!');
+            end
+        end
+        y(q) = y(q) + tau;
+        toStep3 = 1;
+    else
+        error('tau error!');
+    end 
+    
+    % Check the primal variables with active set
+    
+    % Check the dual variables with active set
+    
 end
 
-%% Here we transform the dual optimal to primal optimal
-xStar = invH(oriA'*xStar-oric);
-zStar = 1/2*xStar'*G*xStar + c'*xStar;
+
 end
