@@ -169,7 +169,7 @@ for kk = 1:Nsim;
     [delta_u_M_out_asm_dual, iter, ~, failFlag] = asm_dual(G,inv(G),c,-OMEGA_L,-omega_r,[],[],200);
     iter_ASM_dual = [iter_ASM_dual;iter];
     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
-    if diff > 1e-6
+    if diff > 1e-5
         error('ASM_dual fails.');
     end
     diff_ASM_QUAD_dual = [diff_ASM_QUAD_dual;diff];

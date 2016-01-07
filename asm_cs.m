@@ -2,17 +2,10 @@
 % Solve: z = 1/2x'Gx + c'x, s.t. Ax>b
 % This is a version with constraints seletion, based on Gionata's idea
 % 2015.12.21
-% Yi
-% Here we only consider the constraints of u and y, not delta_ui
-
+% Yi DING
 % Input:
-% G: QP parameters
-% c: QP parameters
-% A: QP parameters (Constraints matrix)
-% b: QP parameters (Constraints vector)
-% x: Iterating point
+% x: Primal Variables
 % w: Working set
-
 % Output:
 % xStar: Optimal point
 % zStar: Optimal objective function
@@ -30,7 +23,7 @@ if min(A*x-b) < -1e-6
 end
 
 % In case we only consider constraitns on u and y
-consInfo = zeros(nu*M+1,nu*2+ny*2);
+consInfo = zeros(M+1,nu*2+ny*2);
 consInfoNum = zeros(1,nu*2+ny*2);
 % % In case we consider constraitns on delta_u, u and y
 % consInfo = zeros(nu*M+1,nu*4+ny*2);

@@ -14,7 +14,7 @@
 % xStar: Optimal primal variable
 % iterStar: Iteration count
 
-function [xStar, iterStar, finalAS, failFlag] = asm_dual(H,invH,g,G,b,x,y,maxIter)
+function [xStar, iterStar, finalAS, failFlag] = asm_dual(H,invH,g,G,b,x,y,maxIter,ny,nu,M,P)
 
 %% Step 0 Initial primal and dual variable, intial active set
 [mc,ndec] = size(G);
@@ -28,6 +28,20 @@ failFlag = 0;
 toStep1 = 1;
 toStep2 = 0;
 
+% In case we only consider constraitns on u and y
+% Note that in dual ASM, consInfo has a different meaning
+consInfo = zeros(max([M,P]),nu*2+ny*2);
+for i = 1:nu
+    for j = 1:M
+        consInfo()
+    end
+end
+
+consInfoNum = zeros(1,nu*2+ny*2);
+
+hpW = [];       % High priority working set
+lpW = [];       % Low priority working set
+
 % Iterations
 for k = 1:maxIter
     if k == maxIter
@@ -38,15 +52,20 @@ for k = 1:maxIter
     %% Step 1 Choose a violated (primal) constraint
     if toStep1 == 1 && toStep2 == 0
         optFlag = 1;
-        for j = 1:length(notA)
-            i = notA(j);
-            if G(i,:)*x < b(i);    % Here we find a violated constraint
-                optFlag = 0;
-                q = i;             % Note, q is the id of the cons
-                qIndNotA = j;
-                break;
-            end
-        end
+%         % The original constraint picking strategy
+%         for j = 1:length(notA)
+%             i = notA(j);
+%             if G(i,:)*x < b(i);    % Here we find a violated constraint
+%                 optFlag = 0;
+%                 q = i;             % Note, q is the id of the cons
+%                 qIndNotA = j;
+%                 break;
+%             end
+%         end
+        
+        
+
+        
         % No primal constraint violated, optimum reached.
         if optFlag == 1
             xStar = x;
@@ -101,7 +120,7 @@ for k = 1:maxIter
             yPlus(j) = yPlus(j) + tau * delta_y(j);
         end
         yPlus(length(yPlus)) = yPlus(length(yPlus)) + tau;
-        notA = [notA;A(blockJ)];    % Note that notA is not ordered
+        notA = [notA;A(blockJ)];    % Note that notA is not ordered        
         A(blockJ) = [];
         y(blockJ) = [];
         yPlus(blockJ) = [];

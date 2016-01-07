@@ -131,9 +131,11 @@ x_draw = zeros(n,Nsim);
 u_draw = zeros(Nsim,nu);
 invG = inv(G);
 diff_ASM_QUAD = [];
+diff_ASMDUAL_QUAD = [];
 iter_ASM = [];
 iter_ASM_cs = [];
 iter_ASM_ws = [];
+iter_ASM_dual = [];
 finalAS = [];
 ucTimes = 0;        % Record the cases that optimum is unconstrained
 tightTimes = 0;     % Record the cases that no feasible solution existed
@@ -231,6 +233,17 @@ for kk = 1:Nsim;
     end
     diff_ASM_QUAD = [diff_ASM_QUAD;diff];
     
+    % Solve the problem with Dual ASM
+    [delta_u_M_out_asm_dual,~,~,failFlag] = asm_dual(G,...
+        invG,c,-OMEGA_L,-omega_r,[],[],300);
+    iter_ASM_dual = [iter_ASM_dual;iter];        
+    diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
+    if failFlag == 1 || diff > 1e-3
+        disp('ASM_dual fails.');
+        %error('ASM_cs fails.');
+    end
+    diff_ASMDUAL_QUAD = [diff_ASMDUAL_QUAD;diff];
+    
 %     % Initial point based on previous optimal active set
 %     % Phase I
 %     x_ini = delta_u_M_out;
@@ -277,6 +290,7 @@ for kk = 1:Nsim;
 
 end
 
+semilogy(diff_ASMDUAL_QUAD);
 maxIterASM = max(iter_ASM);
 maxIterNew = max(iter_ASM_cs);
 avgIterASM = mean(iter_ASM);
