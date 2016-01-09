@@ -89,8 +89,8 @@
 % wl = [];
 % nf = 1;
 % ml = 0;
-% x = [3;0;0;-4]; % æ­£ç¡®çš„æµ‹è¯•åˆå§‹å€¼
-% % x = [3;0;0;-3]; % æµ‹è¯•Errorç”¨çš„é”™è¯¯åˆå€¼
+% x = [3;0;0;-4]; % ÕıÈ·µÄ²âÊÔ³õÊ¼Öµ
+% % x = [3;0;0;-3]; % ²âÊÔErrorÓÃµÄ´íÎó³õÖµ
 
 % %Data 4~5
 % load failedData1
@@ -172,11 +172,11 @@ end
 
 % variables
 orderPermu = 1:ndec;
-orderPermu = orderPermu';             % orderPermu é‡‡ç”¨æ‰‹åŠ¨è°ƒæ¢è€Œä¸æ˜¯ä¹˜ä»¥PiGlobalçš„æ–¹å¼æ¥è¿›è¡Œæ›´æ–°ï¼Œä¸ºåç»­å½»åº•å‘Šåˆ«PiGlobalåšå‡†å¤‡ã€‚ â€”â€”8æœˆ20æ—¥ ä»£ç ä¼˜åŒ–æ—¶æ³¨
-H_ori = H;                      % H çš„å¤‡ä»½ï¼Œç”¨æ¥æ£€éªŒé’ˆå¯¹ H çš„ permute æ˜¯å¦æ­£ç¡®è¿›è¡Œ
+orderPermu = orderPermu';             % orderPermu ²ÉÓÃÊÖ¶¯µ÷»»¶ø²»ÊÇ³ËÒÔPiGlobalµÄ·½Ê½À´½øĞĞ¸üĞÂ£¬ÎªºóĞø³¹µ×¸æ±ğPiGlobal×ö×¼±¸¡£ ¡ª¡ª8ÔÂ20ÈÕ ´úÂëÓÅ»¯Ê±×¢
+H_ori = H;                      % H µÄ±¸·İ£¬ÓÃÀ´¼ìÑéÕë¶Ô H µÄ permute ÊÇ·ñÕıÈ·½øĞĞ
 c_ori = c;
 
-% å¦‚æœç»™çš„ bound constraint å¯¹åº”çš„ x ä¸å†é å nf ä¸ªä½ç½®ä¸Šï¼Œåœ¨è¿™é‡Œéœ€è¦æŠŠå®ƒä»¬è°ƒæ•´åˆ°ç›¸åº”çš„ä½ç½®ä¸Šå»
+% Èç¹û¸øµÄ bound constraint ¶ÔÓ¦µÄ x ²»ÔÙ¿¿ºó nf ¸öÎ»ÖÃÉÏ£¬ÔÚÕâÀïĞèÒª°ÑËüÃÇµ÷Õûµ½ÏàÓ¦µÄÎ»ÖÃÉÏÈ¥
 % If the last nf items of x is not according with the initial bound constraints
 % we should adjust it to meet the requirement of the algorithm
 for i = 1:length(wf)
@@ -254,7 +254,7 @@ else
     p = permutReco(p,orderPermu,ndec,1);  
 end
 
-% ä»è®¡ç®—å¾—åˆ°på¼€å§‹æ¯å‘¨æœŸçš„è¿­ä»£
+% ´Ó¼ÆËãµÃµ½p¿ªÊ¼Ã¿ÖÜÆÚµÄµü´ú
 % Iteration start!
 for iter = 1:maxIter
     
@@ -268,8 +268,8 @@ for iter = 1:maxIter
         gf = gx(nv+1:ndec,:);
         if ml == 0            
             lambdaf = zeros(nf,1);
-            % å› ä¸ºè‡ªå·±çš„å‘½é¢˜å’Œè®ºæ–‡ä¸­çš„å‘½é¢˜å½¢å¼ä¸åŒï¼ŒåŒºåˆ«ä¸»è¦åœ¨ lub çš„æ„æˆä¸Š
-            % æ‰€ä»¥è¿™é‡Œéœ€è¦åŠ ä¸€éƒ¨æ¥å¯¹ lub å¯¹åº”çš„ gf çš„ååŠéƒ¨åˆ†å˜å·
+            % ÒòÎª×Ô¼ºµÄÃüÌâºÍÂÛÎÄÖĞµÄÃüÌâĞÎÊ½²»Í¬£¬Çø±ğÖ÷ÒªÔÚ lub µÄ¹¹³ÉÉÏ
+            % ËùÒÔÕâÀïĞèÒª¼ÓÒ»²¿À´¶Ô lub ¶ÔÓ¦µÄ gf µÄºó°ë²¿·Ö±äºÅ
             for i = 1:nf
                 if wf(i) <= nbc
                     lambdaf(i) = gf(i);
@@ -282,9 +282,9 @@ for iter = 1:maxIter
         else
             lambdal = linsolve(Lv',vl);           
             K = H(1:nv,nv+1:ndec);            
-            lambdaf = gf + K'*pvStar - Af'*lambdal;         % A çš„æ›´æ–°æ˜¯ä»¥ Av å’Œ Af çš„åˆ†åˆ«æ›´æ–°æ¥å®ç°çš„           
-            % å› ä¸ºè‡ªå·±çš„å‘½é¢˜å’Œè®ºæ–‡ä¸­çš„å‘½é¢˜å½¢å¼ä¸åŒï¼ŒåŒºåˆ«ä¸»è¦åœ¨ lub çš„æ„æˆä¸Š
-            % æ‰€ä»¥è¿™é‡Œéœ€è¦åŠ ä¸€éƒ¨æ¥å¯¹ lub å¯¹åº”çš„ gf çš„ååŠéƒ¨åˆ†å˜å·
+            lambdaf = gf + K'*pvStar - Af'*lambdal;         % A µÄ¸üĞÂÊÇÒÔ Av ºÍ Af µÄ·Ö±ğ¸üĞÂÀ´ÊµÏÖµÄ           
+            % ÒòÎª×Ô¼ºµÄÃüÌâºÍÂÛÎÄÖĞµÄÃüÌâĞÎÊ½²»Í¬£¬Çø±ğÖ÷ÒªÔÚ lub µÄ¹¹³ÉÉÏ
+            % ËùÒÔÕâÀïĞèÒª¼ÓÒ»²¿À´¶Ô lub ¶ÔÓ¦µÄ gf µÄºó°ë²¿·Ö±äºÅ
             for i = 1:nf
                 if wf(i) > nbc
                    lambdaf(i) = -lambdaf(i);
@@ -313,7 +313,7 @@ for iter = 1:maxIter
                 if indexJ <= nv
                     error('Bound constraints must be in last nf rows');
                 end
-                % è¿™é‡Œè¦æ›´æ–°Hï¼Œè‚¯å®šå°±æ˜¯è¦æŠŠè¢«åˆ çš„ fixed constraint å¯¹åº”çš„ x ä»å nf æåˆ°å‰ nv ä¸­                         
+                % ÕâÀïÒª¸üĞÂH£¬¿Ï¶¨¾ÍÊÇÒª°Ñ±»É¾µÄ fixed constraint ¶ÔÓ¦µÄ x ´Óºó nf Ìáµ½Ç° nv ÖĞ                         
                 orderPermu = swapVec(orderPermu,indexJ,nv+1);
                 H = swapMat(H,indexJ,nv+1);      
                 gx = swapVec(gx,indexJ,nv+1);                
@@ -332,7 +332,7 @@ for iter = 1:maxIter
                     if (~isempty(wl))
                         error('Working set error!');
                     end
-                    %----æ³¨æ„è¿™é‡Œåœ¨æ›´æ–°Avçš„æ—¶å€™é¡ºä¾¿æŠŠAä¹Ÿæ›´æ–°ä¸€ä¸‹ï¼Œç”¨äºåœ¨åé¢æ ¡éªŒAf----
+                    %----×¢ÒâÕâÀïÔÚ¸üĞÂAvµÄÊ±ºòË³±ã°ÑAÒ²¸üĞÂÒ»ÏÂ£¬ÓÃÓÚÔÚºóÃæĞ£ÑéAf----
                     Av = [];Af = [];wl = [];
                     Yv = [];Lv = [];A = [];                 
                     gv = gx(1:nv,:);
@@ -369,7 +369,7 @@ for iter = 1:maxIter
                     Yv = YvP(:,1:ml);
                     z_bar = YvP(:,ml+1);
                                         
-                    % Test Code å…ˆåˆ é™¤
+                    % Test Code ÏÈÉ¾³ı
                     if max(max(abs(Lv*Yv'*Rv-Av))) > 0.0000001
                         error('Update error!');
                     end                                                             
@@ -389,7 +389,7 @@ for iter = 1:maxIter
             else
                 %% Delete a general constraint
                 [~,index] = min(lambdal);                
-                % è¿™ç§æ›´æ–°æ–¹æ³•è®¤ä¸ºAvçš„åç»­è¡Œä¹Ÿä¼šå—åˆ°å½±å“
+                % ÕâÖÖ¸üĞÂ·½·¨ÈÏÎªAvµÄºóĞøĞĞÒ²»áÊÜµ½Ó°Ïì
                 isInWl(wl(index)) = 0;
                 wl(index) = [];
                 
@@ -426,9 +426,9 @@ for iter = 1:maxIter
                     % Update Av and Af
                     Av(index,:) = [];
                     Af(index,:) = [];
-                    A(index,:) = [];            %  è¿™ä¸ªæ›´æ–°ä¸å¿…è¦ï¼Œåªæ˜¯ç”¨äºåœ¨åé¢æ ¡éªŒAfï¼›
+                    A(index,:) = [];            %  Õâ¸ö¸üĞÂ²»±ØÒª£¬Ö»ÊÇÓÃÓÚÔÚºóÃæĞ£ÑéAf£»
                     
-                    % Test Code å…ˆåˆ é™¤
+                    % Test Code ÏÈÉ¾³ı
                     % Check
                     if max(max(abs(Av-Lv*Yv'*Rv))) > 0.0005
                         disp('Av or Lv update fails');
@@ -449,8 +449,8 @@ for iter = 1:maxIter
         % Note that here I did not keep the active constaint out for convenience
         alpha = 1;
         addBoundConstraint = 0;
-        addGeneralConstraint = 0;   % è¿™é‡Œæˆ‘ä»¬æ²¡æœ‰æŠŠåœ¨working seté‡Œçš„çº¦æŸé…æ’é™¤
-        for i = 1:nbc       % åœ¨è¿™é‡Œé€šè¿‡ä¾æ¬¡æŸ¥éªŒçš„æ–¹æ³•ç¡®å®šä¸€ä¸ªåˆé€‚çš„alphaå€¼
+        addGeneralConstraint = 0;   % ÕâÀïÎÒÃÇÃ»ÓĞ°ÑÔÚworking setÀïµÄÔ¼ÊøÅäÅÅ³ı
+        for i = 1:nbc       % ÔÚÕâÀïÍ¨¹ıÒÀ´Î²éÑéµÄ·½·¨È·¶¨Ò»¸öºÏÊÊµÄalphaÖµ
             if p(i) < 0
                 tmpAlpha = (lub(i)-x(i))/p(i);
                 if tmpAlpha < alpha
@@ -470,8 +470,8 @@ for iter = 1:maxIter
                 end
             end
         end
-        % ä¹Ÿå°±æ˜¯è¯´ï¼Œè¿™ä¸ªæ—¶å€™å¦‚æœ alpha å·²ç»å¾ˆæ¥è¿‘ 0 äº†ï¼Œé‚£ä¹ˆå°±è€ƒè™‘å»æ‰ä¸€æ¡ 
-        % bound çº¦æŸï¼Œä¸ç”¨åœ¨åé¢å†åˆ¤æ–­è¦ä¸è¦å»æ‰ general çº¦æŸäº†            
+        % Ò²¾ÍÊÇËµ£¬Õâ¸öÊ±ºòÈç¹û alpha ÒÑ¾­ºÜ½Ó½ü 0 ÁË£¬ÄÇÃ´¾Í¿¼ÂÇÈ¥µôÒ»Ìõ 
+        % bound Ô¼Êø£¬²»ÓÃÔÚºóÃæÔÙÅĞ¶ÏÒª²»ÒªÈ¥µô general Ô¼ÊøÁË            
         if alpha > 0.000000001     
             for i = 1:ngc
                 if isInWl(i) == 0
@@ -485,7 +485,7 @@ for iter = 1:maxIter
                             generalIndex = i;
                         end
                         %fprintf('ap(%d): %f  tmpAlpha: %f  alpha: %f  \n',i,ap,tmpAlpha,alpha);
-                        if alpha < 0.000000001      % å¦‚æœ alpha å¾ˆæ¥è¿‘ 0 äº†ï¼Œå°±é€€å‡º
+                        if alpha < 0.000000001      % Èç¹û alpha ºÜ½Ó½ü 0 ÁË£¬¾ÍÍË³ö
                             break;                          
                         end
                     end
@@ -501,7 +501,7 @@ for iter = 1:maxIter
         if (alpha < 1)
             if (addBoundConstraint == 1) && (addGeneralConstraint ==0)
                %% Adding a bound constraint
-                wf = [boundIndex;wf];   % wf å†…çº¦æŸindexçš„æ’åˆ—éœ€è¦æ³¨æ„
+                wf = [boundIndex;wf];   % wf ÄÚÔ¼ÊøindexµÄÅÅÁĞĞèÒª×¢Òâ
                 % Other updates ...                
                 indexJ = mod(boundIndex,nbc);
                 if indexJ == 0
@@ -526,9 +526,9 @@ for iter = 1:maxIter
                 H = swapMat(H,indexJ,nv);        
                 gx = swapVec(gx,indexJ,nv);
                 Rv = Rv_hat(1:nv-1,1:nv-1);  
-                Hv = H(1:nv-1,1:nv-1);     % è¿™é‡Œ Hv å¥½åƒä¸ç”¨æ›´æ–°ï¼ŒåæœŸå¯ä»¥è€ƒè™‘åˆ æ‰
+                Hv = H(1:nv-1,1:nv-1);     % ÕâÀï Hv ºÃÏñ²»ÓÃ¸üĞÂ£¬ºóÆÚ¿ÉÒÔ¿¼ÂÇÉ¾µô
                              
-%                 % Test Code å…ˆåˆ é™¤ï¼Œçœ‹ä¸‹è·‘å¾—æ—¶é—´æ€ä¹ˆæ ·
+%                 % Test Code ÏÈÉ¾³ı£¬¿´ÏÂÅÜµÃÊ±¼äÔõÃ´Ñù
 %                 %%----------------------Test Code--------------------------
 %                 if (origin'*H_ori*origin-orderPermu'*H*orderPermu) > 0.0000001
 %                     error('Permute on Hv failed!')
@@ -571,7 +571,7 @@ for iter = 1:maxIter
                     Af = [a,Af];
                     P = eye(ml+1,ml+1);
                     for i = 1:ml
-                        % è¿™é‡Œé‡‡ç”¨ä¸€ç§ç‰¹æ®Šçš„ plane rotation çš„æ–¹æ³•
+                        % ÕâÀï²ÉÓÃÒ»ÖÖÌØÊâµÄ plane rotation µÄ·½·¨
                         G = myplanerot([QYz(nv+1,ml+1);QYz(nv+1,ml+1-i)]);
                         QYz = colRot(QYz,G,ml+1,ml+1-i);
                         P = colRot(P,G,ml+1,ml+1-i);
@@ -655,7 +655,7 @@ for iter = 1:maxIter
                     a_up = [l',gamma]*Yv'*Rv;
                     diff_a = max(abs(a(1:nv,:)-a_up'));
                     
-                    % Check å¯¹ç´¯è®¡çš„æ›´æ–°è¯¯å·®è¿›è¡Œçº æ­£
+                    % Check ¶ÔÀÛ¼ÆµÄ¸üĞÂÎó²î½øĞĞ¾ÀÕı
                     %if max(max(abs(Av-Lv*Yv'*Rv)))>0.0005
                     if diff_a > 0.0005
                         disp('Av or Lv update fails');
@@ -696,7 +696,7 @@ for iter = 1:maxIter
             else
                 error('Add constraint error!');
             end
-        else    % å½“ alpha == 1 æ—¶ï¼Œä¿æŒ working set ä¸å˜å†æ±‚è§£ä¸€æ¬¡ p
+        else    % µ± alpha == 1 Ê±£¬±£³Ö working set ²»±äÔÙÇó½âÒ»´Î p
             gv = gx(1:nv,:);
             if ml == 0
                 %%----------------------Test Code----------------------
@@ -708,7 +708,7 @@ for iter = 1:maxIter
                 p = [pvStar;zeros(nf,1)];                
                 p = permutReco(p,orderPermu,ndec,1);  
             else                
-                % æ­¤æ—¶è™½ç„¶ Lv å’Œ Yv æ²¡å˜ï¼Œä½†gv å‘ç”Ÿäº†å˜åŒ–ï¼Œå› æ­¤è¦æ›´æ–° uï¼Œv å’Œ w                                
+                % ´ËÊ±ËäÈ» Lv ºÍ Yv Ã»±ä£¬µ«gv ·¢ÉúÁË±ä»¯£¬Òò´ËÒª¸üĞÂ u£¬v ºÍ w                                
                 uv = linsolve(Rv',gv);                
                 vl = Yv'*uv;
                 wv = Yv*vl-uv;
