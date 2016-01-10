@@ -1,5 +1,5 @@
 %% Test the WGS solver on aircraft model
-% Oct. 20, Yi
+% 2015/10/20, Yi
 % Aircraft model is from MATLAB mpctoolbox demo, mpcaircraft
 % MPC strategy is from Gionata Cimini
 
@@ -16,7 +16,7 @@ time_QUAD = []; time_Single = []; time_Double = [];
 iter_QUAD = []; iter_Single = []; iter_Double = [];
 u_Record = []; x_Record = []; y_Record = [];
 
-load tmpModel
+load .\modelData\tmpModel
 
 options.Algorithm='interior-point-convex';
 options.MaxIter=1000;
