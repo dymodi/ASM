@@ -38,15 +38,27 @@ for k = 1:maxIter
     %% Step 1 Choose a violated (primal) constraint
     if toStep1 == 1 && toStep2 == 0
         optFlag = 1;
+        mostVioValu = 0;
+        mostVioCons = 0;
         for j = 1:length(notA)
             i = notA(j);
-            if G(i,:)*x < b(i);    % Here we find a violated constraint
-                optFlag = 0;
-                q = i;             % Note, q is the id of the cons
-                qIndNotA = j;
-                break;
+            if G(i,:)*x < b(i);
+                % % Here we pick the violated constraint
+                % optFlag = 0;
+                % q = i;             % Note, q is the id of the cons
+                % qIndNotA = j;
+                % break;
+                % Here we pick the most violated one from all constraints
+                if (G(i,:)*x - b(i))/norm(G(i,:)) < mostVioValu
+                    mostVioValu = (G(i,:)*x - b(i))/norm(G(i,:));
+                    mostVioCons = i;
+                    optFlag = 0;
+                    q = mostVioCons;
+                    qIndNotA = j;
+                end
             end
         end
+        
         % No primal constraint violated, optimum reached.
         if optFlag == 1
             xStar = x;

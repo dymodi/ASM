@@ -2,6 +2,8 @@
 % 2015.12.28
 % Yi
 
+clc;clear;
+
 Ts = 0.05;         % Sampling time
 Nsim = 30;         % Simulation length
 
@@ -10,10 +12,14 @@ R = 0.1;
 testSizeIO = 5;
 testSizeMP = 5;
 
-dataMaxIterASM = zeros(testSizeIO,testSizeMP);  % Max Iter of origin ASM
-dataMaxIterNew = zeros(testSizeIO,testSizeMP);  % Max Iter of ASM with constraints seletion
-dataAvgIterASM = zeros(testSizeIO,testSizeMP);  % Average Iter of origin ASM
-dataAvgIterNew = zeros(testSizeIO,testSizeMP);  % Average Iter of ASM with constraints seletion
+dataMaxIterPrimASM = zeros(testSizeIO,testSizeMP);  % Max Iter of origin ASM
+dataMaxIterPrimASM_CS = zeros(testSizeIO,testSizeMP);  % Max Iter of ASM with constraints seletion
+dataAvgIterPrimASM = zeros(testSizeIO,testSizeMP);  % Average Iter of origin ASM
+dataAvgIterPrimASM_CS = zeros(testSizeIO,testSizeMP);  % Average Iter of ASM with constraints seletion
+dataMaxIterDualASM = zeros(testSizeIO,testSizeMP);  % Max Iter of origin ASM
+dataMaxIterDualASM_CS = zeros(testSizeIO,testSizeMP);  % Max Iter of ASM with constraints seletion
+dataAvgIterDualASM = zeros(testSizeIO,testSizeMP);  % Average Iter of origin ASM
+dataAvgIterDualASM_CS = zeros(testSizeIO,testSizeMP);  % Average Iter of ASM with constraints seletion
 dataUcTimes = zeros(testSizeIO,testSizeMP);     % Unconstrained problems
 dataTightTimes = zeros(testSizeIO,testSizeMP);  % Unsolvable problems
 dataSolveTimes = zeros(testSizeIO,testSizeMP);  % Actual solve times
@@ -27,18 +33,23 @@ for i = 1:testSizeIO
     for j = 1:testSizeMP
         P = j*10+10;
         M = j+3;        
-        [maxIterASM,avgIterASM,maxIterNew,avgIterNew,ucTimes,tightTimes,...
-          failTimesASM,failTimesNew] = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R);                
+        [maxIterPrimASM,avgIterPrimASM,maxIterPrimASM_CS,avgIterPrimASM_CS,...
+    maxIterDualASM,avgIterDualASM,maxIterDualASM_CS,avgIterDualASM_CS,...
+    ucTimes,tightTimes,failTimesASM,failTimesNew] = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R);               
         dataUcTimes(i,j) = ucTimes;
         dataTightTimes(i,j) = tightTimes;
         dataSolveTimes(i,j) = Nsim - ucTimes - tightTimes;
         if dataSolveTimes(i,j) == 0
             continue;
         end
-        dataMaxIterASM(i,j) = maxIterASM;
-        dataMaxIterNew(i,j) = maxIterNew;
-        dataAvgIterASM(i,j) = avgIterASM;
-        dataAvgIterNew(i,j) = avgIterNew;                
+        dataMaxIterPrimASM(i,j) = maxIterPrimASM;
+        dataMaxIterPrimASM_CS(i,j) = maxIterPrimASM_CS;
+        dataAvgIterPrimASM(i,j) = avgIterPrimASM;
+        dataAvgIterPrimASM_CS(i,j) = avgIterPrimASM_CS;
+        dataMaxIterDualASM(i,j) = maxIterDualASM;
+        dataMaxIterDualASM_CS(i,j) = maxIterDualASM_CS;
+        dataAvgIterDualASM(i,j) = avgIterDualASM;
+        dataAvgIterDualASM_CS(i,j) = avgIterDualASM_CS;     
         dataFailTimesASM(i,j) = failTimesASM;
         dataFailTimesNew(i,j) = failTimesNew;                
     end        

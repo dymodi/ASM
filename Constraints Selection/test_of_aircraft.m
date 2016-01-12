@@ -4,6 +4,14 @@
 
 clc;clear;
 
+%% Add the father path into the working directroy
+currentDepth = 1; % get the supper path of the current path
+currPath = fileparts(mfilename('fullpath')); % get current path
+pos_v = strfind(currPath,filesep); 
+father_p = currPath(1:pos_v(length(pos_v)-currentDepth+1)-1); 
+% -1: delete the last character '/' or '\' 
+addpath(father_p);
+
 %% Define Aircraft Model
 % The linear open-loop dynamic model is as follows:
 A = [-0.0151 -60.5651 0 -32.174;
@@ -35,8 +43,8 @@ nx = 4; nu = 2; ny = 2;
 %% Control parameters
 % Create an MPC controller with plant model, sample time and horizons.
 Nsim = 100;
-P = 10;             % Prediction horizon
-M = 2;              % Control horizon
+P = 20;             % Prediction horizon
+M = 4;              % Control horizon
 Q = 10;
 R = 0.1;
 L1 = zeros(nx,ny);
@@ -118,6 +126,7 @@ delta_u_M_out = zeros(nu*M,1);
 iter_ASM = [];
 iter_ASM_cs = [];
 iter_ASM_dual = [];
+iter_ASM_dual_cs = [];
 iter_ASM_ws = [];
 finalAS = [];
 
@@ -146,7 +155,8 @@ for kk = 1:Nsim;
     if max(OMEGA_L*x_ini-omega_r) > 1e-8
         error('Correction failed!')
     end
-    [delta_u_M_out_asm,~,iter,finalAS_right] = asm(G,invG,c,-OMEGA_L,-omega_r,x_ini,[],200);
+    [delta_u_M_out_asm,~,iter,finalAS_right] = asm(G,invG,...
+        c,-OMEGA_L,-omega_r,x_ini,[],200);
     iter_ASM = [iter_ASM;iter];
     
     % Phase I (Generate feasible starting point)
@@ -158,18 +168,29 @@ for kk = 1:Nsim;
     if max(OMEGA_L*x_ini-omega_r) > 1e-8
         error('Correction failed!')
     end
-    [delta_u_M_out_asm_cs,~,iter,~] = asm_cs(G,invG,c,-OMEGA_L,-omega_r,x_ini,[],200,ny,nu,M,P);
+    [delta_u_M_out_asm_cs,~,iter,~] = asm_cs(G,invG,...
+        c,-OMEGA_L,-omega_r,x_ini,[],200,ny,nu,M,P);
     iter_ASM_cs = [iter_ASM_cs;iter];    
     diff = norm(delta_u_M_out_asm_cs-delta_u_M_out);
-    if diff > 1e-5
-        disp('ASM_cs fails.');
+    if diff > 1e-3
+        error('ASM_cs fails.');
     end
     diff_ASM_QUAD = [diff_ASM_QUAD;diff];
        
-    [delta_u_M_out_asm_dual, iter, ~, failFlag] = asm_dual(G,inv(G),c,-OMEGA_L,-omega_r,[],[],200);
+     [delta_u_M_out_asm_dual, iter, ~, failFlag] = asm_dual(G,inv(G),...
+        c,-OMEGA_L,-omega_r,[],[],200);
     iter_ASM_dual = [iter_ASM_dual;iter];
     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
-    if diff > 1e-5
+    if diff > 1e-4
+        error('ASM_dual fails.');
+    end
+    diff_ASM_QUAD_dual = [diff_ASM_QUAD_dual;diff];
+    
+    [delta_u_M_out_asm_dual, iter, ~, failFlag] = asm_dual_cs(G,inv(G),...
+        c,-OMEGA_L,-omega_r,[],[],200,ny,nu,M,P);
+    iter_ASM_dual_cs = [iter_ASM_dual_cs;iter];
+    diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
+    if diff > 1e-2
         error('ASM_dual fails.');
     end
     diff_ASM_QUAD_dual = [diff_ASM_QUAD_dual;diff];
@@ -230,7 +251,10 @@ subplot(2,1,2); stairs(u_draw(:,1),'LineWidth',2);title('u(k)');
 hold on; stairs(u_draw(:,2),'LineWidth',2);
 figure; title('Iteration count')
 plot(iter_ASM); hold on; plot(iter_ASM_cs);
-legend('Original ASM','ASM with Constraints Selection');
+legend('Primal ASM','Primal ASM with CS');
+figure; title('Iteration count')
+plot(iter_ASM_dual);hold on;plot(iter_ASM_dual_cs);
+legend('Dual ASM','Dual ASM with CS');
 % figure; title('Iteration count')
 % plot(iter_ASM); hold on; plot(iter_ASM_ws);
 % legend('Original ASM','ASM with Warm Start');

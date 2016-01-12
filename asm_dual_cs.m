@@ -14,7 +14,7 @@
 % xStar: Optimal primal variable
 % iterStar: Iteration count
 
-function [xStar, iterStar, finalAS, failFlag] = asm_dual(H,invH,g,G,b,x,y,maxIter,ny,nu,M,P)
+function [xStar, iterStar, finalAS, failFlag] = asm_dual_cs(H,invH,g,G,b,x,y,maxIter,ny,nu,M,P)
 
 %% Step 0 Initial primal and dual variable, intial active set
 [mc,ndec] = size(G);
@@ -30,17 +30,42 @@ toStep2 = 0;
 
 % In case we only consider constraitns on u and y
 % Note that in dual ASM, consInfo has a different meaning
+% In primal ASM, consInfo stores cons in w, while in dual ASM, consInfo
+% stores cons in notW
+% Here the we only consider cons on u and y but omit delta_u
 consInfo = zeros(max([M,P]),nu*2+ny*2);
 for i = 1:nu
     for j = 1:M
-        consInfo()
+        consInfo(j,i) = (j-1)*nu+i;
+        consInfo(j,i+nu) = (j-1)*nu+i+nu*M;
     end
 end
-
+for i = 1:ny
+    for j = 1:P
+        consInfo(j,i+2*nu) = (j-1)*ny+i+2*nu*M;
+        consInfo(j,i+2*nu+ny) = (j-1)*ny+i+2*nu*M+ny*P;
+    end
+end
 consInfoNum = zeros(1,nu*2+ny*2);
-
+for j = 1:2*nu
+    consInfoNum(j) = M;
+end
+for j = 2*nu+1:2*nu+2*ny
+    consInfoNum(j) = P;
+end
 hpW = [];       % High priority working set
 lpW = [];       % Low priority working set
+for j = 1:length(consInfoNum)
+    hpW = [hpW;consInfo(1,j)];
+end
+hpWInd = 1;
+for j = 1:2*nu*M+2*ny*P
+    if hpWInd <= length(consInfoNum) && j == hpW(hpWInd)
+        hpWInd = hpWInd+1;
+    else
+        lpW = [lpW;j];
+    end
+end
 
 % Iterations
 for k = 1:maxIter
@@ -63,8 +88,37 @@ for k = 1:maxIter
 %             end
 %         end
         
-        
-
+        % Constraints selection strategy 
+        % First Chek the high priority cons
+        mostVioCons = 0;
+        mostVioValu = 0;
+        for j = 1:length(hpW)
+            cons = hpW(j);
+            if G(cons,:)*x < b(cons);
+                optFlag = 0;
+                vioValu = (G(cons,:)*x-b(cons))/norm(G(cons,:));
+                if vioValu < mostVioValu
+                    mostVioCons = cons;
+                    mostVioValu = vioValu;
+                end
+            end
+        end
+        % No violated constraint in hpW, check lpW
+        if optFlag == 1
+            for j = 1:length(lpW)
+                cons = lpW(j);
+                if G(cons,:)*x < b(cons);
+                    optFlag = 0;
+                    vioValu = (G(cons,:)*x-b(cons))/norm(G(cons,:));
+                    if vioValu < mostVioValu
+                        mostVioCons = cons;
+                        mostVioValu = vioValu;
+                    end
+                end
+            end            
+        end                
+        q = mostVioCons;
+        qIndNotA = find(notA==q);
         
         % No primal constraint violated, optimum reached.
         if optFlag == 1
@@ -72,7 +126,7 @@ for k = 1:maxIter
             iterStar = k;
             finalAS = A;
             return;
-        end
+        end                                  
         yPlus = [y;0];
     end
     
@@ -120,9 +174,12 @@ for k = 1:maxIter
             yPlus(j) = yPlus(j) + tau * delta_y(j);
         end
         yPlus(length(yPlus)) = yPlus(length(yPlus)) + tau;
-        notA = [notA;A(blockJ)];    % Note that notA is not ordered        
+        % Update hpW, lpW and consInfo 
+        [hpW,lpW,consInfo,consInfoNum] = updatePW_del_dual(hpW,lpW,...
+            consInfo,consInfoNum,A(blockJ),ny,nu,M,P);
+        notA = [notA;A(blockJ)];    % Note that notA is not ordered                        
         A(blockJ) = [];
-        y(blockJ) = [];
+        y(blockJ) = [];                            
         yPlus(blockJ) = [];
         toStep1 = 0;
         toStep2 = 1;
@@ -143,12 +200,18 @@ for k = 1:maxIter
             A = [A;q];
             % A = sort(A);              % Do we need A to be ordered?
             notA(qIndNotA) = [];
+            % Update hpW, lpW and consInfo     
+            [hpW,lpW,consInfo,consInfoNum] = updatePW_add_dual(hpW,lpW,...
+                consInfo,consInfoNum,q,ny,nu,M,P);
             toStep1 = 1;
             toStep2 = 0;
         elseif tau == tauDual           % Partial Step
+            % Update hpW, lpW and consInfo     
+            [hpW,lpW,consInfo,consInfoNum] = updatePW_del_dual(hpW,lpW,...
+                consInfo,consInfoNum,A(blockJ),ny,nu,M,P);
             notA = [notA;A(blockJ)];    % Note that notA is not ordered
             A(blockJ) = [];
-            y(blockJ) = [];
+            y(blockJ) = [];                                    
             yPlus(blockJ) = [];
             toStep1 = 0;
             toStep2 = 1;

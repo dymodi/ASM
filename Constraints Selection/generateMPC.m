@@ -1,8 +1,9 @@
 %% Generate and simulate MPC problems based on given parameters
 % 2015.12.30
 
-function [maxIterASM,avgIterASM,maxIterNew,avgIterNew,ucTimes,tightTimes,...
-    failTimesASM,failTimesNew] = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R)
+function [maxIterPrimASM,avgIterPrimASM,maxIterPrimASM_CS,avgIterPrimASM_CS,...
+    maxIterDualASM,avgIterDualASM,maxIterDualASM_CS,avgIterDualASM_CS,...
+    ucTimes,tightTimes,failTimesASM,failTimesNew] = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R)
 
 %% Generate Random Model
 csys = rss(nx,ny,nu);
@@ -136,6 +137,7 @@ iter_ASM = [];
 iter_ASM_cs = [];
 iter_ASM_ws = [];
 iter_ASM_dual = [];
+iter_ASM_dual_cs = [];
 finalAS = [];
 ucTimes = 0;        % Record the cases that optimum is unconstrained
 tightTimes = 0;     % Record the cases that no feasible solution existed
@@ -234,9 +236,20 @@ for kk = 1:Nsim;
     diff_ASM_QUAD = [diff_ASM_QUAD;diff];
     
     % Solve the problem with Dual ASM
-    [delta_u_M_out_asm_dual,~,~,failFlag] = asm_dual(G,...
+    [delta_u_M_out_asm_dual,iter,~,failFlag] = asm_dual(G,...
         invG,c,-OMEGA_L,-omega_r,[],[],300);
     iter_ASM_dual = [iter_ASM_dual;iter];        
+    diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
+    if failFlag == 1 || diff > 1e-3
+        disp('ASM_dual fails.');
+        %error('ASM_cs fails.');
+    end
+    diff_ASMDUAL_QUAD = [diff_ASMDUAL_QUAD;diff];
+    
+        % Solve the problem with Dual ASM
+    [delta_u_M_out_asm_dual,iter,~,failFlag] = asm_dual_cs(G,...
+        invG,c,-OMEGA_L,-omega_r,[],[],300,ny,nu,M,P);
+    iter_ASM_dual_cs = [iter_ASM_dual_cs;iter];        
     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
     if failFlag == 1 || diff > 1e-3
         disp('ASM_dual fails.');
@@ -290,14 +303,18 @@ for kk = 1:Nsim;
 
 end
 
-semilogy(diff_ASMDUAL_QUAD);
-maxIterASM = max(iter_ASM);
-maxIterNew = max(iter_ASM_cs);
-avgIterASM = mean(iter_ASM);
-avgIterNew = mean(iter_ASM_cs);
+%semilogy(diff_ASMDUAL_QUAD);
+maxIterPrimASM = max(iter_ASM);
+maxIterPrimASM_CS = max(iter_ASM_cs);
+avgIterPrimASM = mean(iter_ASM);
+avgIterPrimASM_CS = mean(iter_ASM_cs);
+maxIterDualASM = max(iter_ASM_dual);
+maxIterDualASM_CS = max(iter_ASM_dual_cs);
+avgIterDualASM = mean(iter_ASM_dual);
+avgIterDualASM_CS = mean(iter_ASM_dual_cs);
 
 
-% % Drawing
+% Drawing
 % figure;
 % rr_draw = rrEle*ones(1,Nsim);
 % subplot(2,1,1); plot(y_draw(:,1),'LineWidth',2); title('y(k)');
@@ -308,8 +325,11 @@ avgIterNew = mean(iter_ASM_cs);
 % figure; title('Iteration count')
 % plot(iter_ASM); hold on; plot(iter_ASM_cs);
 % legend('Original ASM','ASM with Constraints Selection');
-% % % figure; title('Iteration count')
-% % % plot(iter_ASM); hold on; plot(iter_ASM_ws);
-% % % legend('Original ASM','ASM with Warm Start');
-
+% % figure; title('Iteration count')
+% % plot(iter_ASM); hold on; plot(iter_ASM_ws);
+% % legend('Original ASM','ASM with Warm Start');
+figure; title('Iteration count')
+plot(iter_ASM); hold on; plot(iter_ASM_cs);
+plot(iter_ASM_dual);plot(iter_ASM_dual_cs);
+legend('Primal ASM','Primal ASM with CS','Dual ASM','Dual ASM with CS');
 end
