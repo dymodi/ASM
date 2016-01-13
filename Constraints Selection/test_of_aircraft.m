@@ -44,7 +44,7 @@ nx = 4; nu = 2; ny = 2;
 % Create an MPC controller with plant model, sample time and horizons.
 Nsim = 100;
 P = 20;             % Prediction horizon
-M = 4;              % Control horizon
+M = 6;              % Control horizon
 Q = 10;
 R = 0.1;
 L1 = zeros(nx,ny);
@@ -172,25 +172,25 @@ for kk = 1:Nsim;
         c,-OMEGA_L,-omega_r,x_ini,[],200,ny,nu,M,P);
     iter_ASM_cs = [iter_ASM_cs;iter];    
     diff = norm(delta_u_M_out_asm_cs-delta_u_M_out);
-    if diff > 1e-3
+    if diff > 1e-2
         error('ASM_cs fails.');
     end
     diff_ASM_QUAD = [diff_ASM_QUAD;diff];
        
-     [delta_u_M_out_asm_dual, iter, ~, failFlag] = asm_dual(G,inv(G),...
+     [delta_u_M_out_asm_dual, iter_dual, ~, failFlag] = asm_dual(G,inv(G),...
         c,-OMEGA_L,-omega_r,[],[],200);
-    iter_ASM_dual = [iter_ASM_dual;iter];
+    iter_ASM_dual = [iter_ASM_dual;iter_dual];
     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
-    if diff > 1e-4
+    if diff > 2*1e-2
         error('ASM_dual fails.');
     end
     diff_ASM_QUAD_dual = [diff_ASM_QUAD_dual;diff];
     
-    [delta_u_M_out_asm_dual, iter, ~, failFlag] = asm_dual_cs(G,inv(G),...
+    [delta_u_M_out_asm_dual, iter_dual_cs, ~, failFlag] = asm_dual_cs(G,inv(G),...
         c,-OMEGA_L,-omega_r,[],[],200,ny,nu,M,P);
-    iter_ASM_dual_cs = [iter_ASM_dual_cs;iter];
+    iter_ASM_dual_cs = [iter_ASM_dual_cs;iter_dual_cs];
     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
-    if diff > 1e-2
+    if diff > 2*1e-2
         error('ASM_dual fails.');
     end
     diff_ASM_QUAD_dual = [diff_ASM_QUAD_dual;diff];

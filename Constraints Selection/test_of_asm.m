@@ -3,13 +3,13 @@
 
 clc;clear;
 
-%load asmFail6
-load dualFail1
-%load newFail1
-A = -OMEGA_L;
-b = -omega_r;
-maxIter = 300;
-ndec = length(c);
+% %load asmFail6
+% load dualFail1
+% %load newFail1
+% A = -OMEGA_L;
+% b = -omega_r;
+% maxIter = 300;
+% ndec = length(c);
 
 % % Phase I
 % x_ini = zeros(ndec,1);    % Use the solution of last MPC iteration as a guess of the initial value
@@ -43,7 +43,10 @@ ndec = length(c);
 % c = [-2;-5];
 % A = [1,0;0,1;1,-2;-1,-2;-1,2];
 % b = [0;0;-2;-6;-2];
-[xStar_Prim, zStar_Prim, iterStar_Prim, finalAS_Prim, ~] = asm(G,...
-    inv(G),c,A,b,zeros(4,1),[],100);
-[xStar_QUAD] = quadprog(G,c,-A,-b);
-[xStar, iterStar, finalAS, failFlag] = asm_dual(G,inv(G),c,A,b,[],[],100);
+% [xStar_Prim, zStar_Prim, iterStar_Prim, finalAS_Prim, ~] = asm(G,...
+%     inv(G),c,A,b,zeros(4,1),[],100);
+% [xStar_QUAD] = quadprog(G,c,-A,-b);
+% [xStar, iterStar, finalAS, failFlag] = asm_dual(G,inv(G),c,A,b,[],[],100);
+
+load ..\testData\dualcsFail1.mat
+[xStar, iterStar, finalAS, failFlag] = asm_dual_cs(H,invH,g,G,b,[],[],maxIter,ny,nu,M,P);

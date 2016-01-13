@@ -5,7 +5,7 @@
 % Together with Goldfarb's paper:  A Numerically Stable Dual Method for 
 % Solving Strictly Convex Quadratic Programs
 % z = 1/2x'Hx + g'x, s.t. Gx>b
-% 2016.1.4  % Pass random QP test on 2016/1/7
+% 2016/1/10
 % Yi DING
 % Input:
 % x: Primal variables
@@ -47,6 +47,8 @@ for i = 1:ny
     end
 end
 consInfoNum = zeros(1,nu*2+ny*2);
+consHaveAct = zeros(1,nu*2+ny*2);
+
 for j = 1:2*nu
     consInfoNum(j) = M;
 end
@@ -71,20 +73,34 @@ end
 for k = 1:maxIter
     if k == maxIter
         failFlag = 1;
-        error('Maximum iteration reached.');
+        xStar = x;
+        iterStar = k;
+        finalAS = A; 
+        disp('Maximum iteration reached. Dual ASM with CS fails');
+        %error('Maximum iteration reached.');
     end
     
     %% Step 1 Choose a violated (primal) constraint
     if toStep1 == 1 && toStep2 == 0
         optFlag = 1;
-%         % The original constraint picking strategy
+%         mostVioValu = 0;
+%         mostVioCons = 0;
 %         for j = 1:length(notA)
 %             i = notA(j);
-%             if G(i,:)*x < b(i);    % Here we find a violated constraint
-%                 optFlag = 0;
-%                 q = i;             % Note, q is the id of the cons
-%                 qIndNotA = j;
-%                 break;
+%             if G(i,:)*x < b(i);
+%                 % % Here we pick the violated constraint
+%                 % optFlag = 0;
+%                 % q = i;             % Note, q is the id of the cons
+%                 % qIndNotA = j;
+%                 % break;
+%                 % Here we pick the most violated one from all constraints
+%                 if (G(i,:)*x - b(i))/norm(G(i,:)) < mostVioValu
+%                     mostVioValu = (G(i,:)*x - b(i))/norm(G(i,:));
+%                     mostVioCons = i;
+%                     optFlag = 0;
+%                     q = mostVioCons;
+%                     qIndNotA = j;
+%                 end
 %             end
 %         end
         
@@ -142,7 +158,7 @@ for k = 1:maxIter
     delta_y = -Wk*GA*invH*Gq';  % Note, length(delta_y) = length(A);
     
     %% Step 4 Calculate the step length
-    if isZero(delta_x,1e-6)
+    if isZero(delta_x,1e-5)
         tauPrim = +Inf;
     else
         tauPrim = -(Gq*x-b(q))/(Gq*delta_x);
@@ -163,7 +179,7 @@ for k = 1:maxIter
     end
     
     %% Step 5 Active set update
-    if isZero(delta_x,1e-6)
+    if isZero(delta_x,1e-5)
         if tauDual == Inf
             error('QP infeasible!');
         end
@@ -175,8 +191,8 @@ for k = 1:maxIter
         end
         yPlus(length(yPlus)) = yPlus(length(yPlus)) + tau;
         % Update hpW, lpW and consInfo 
-        [hpW,lpW,consInfo,consInfoNum] = updatePW_del_dual(hpW,lpW,...
-            consInfo,consInfoNum,A(blockJ),ny,nu,M,P);
+        [hpW,lpW,consInfo,consInfoNum,consHaveAct] = updatePW_del_dual(hpW,lpW,...
+            consInfo,consInfoNum,consHaveAct,A(blockJ),ny,nu,M,P);
         notA = [notA;A(blockJ)];    % Note that notA is not ordered                        
         A(blockJ) = [];
         y(blockJ) = [];                            
@@ -201,14 +217,14 @@ for k = 1:maxIter
             % A = sort(A);              % Do we need A to be ordered?
             notA(qIndNotA) = [];
             % Update hpW, lpW and consInfo     
-            [hpW,lpW,consInfo,consInfoNum] = updatePW_add_dual(hpW,lpW,...
-                consInfo,consInfoNum,q,ny,nu,M,P);
+            [hpW,lpW,consInfo,consInfoNum,consHaveAct] = updatePW_add_dual(hpW,lpW,...
+                consInfo,consInfoNum,consHaveAct,q,ny,nu,M,P);
             toStep1 = 1;
             toStep2 = 0;
         elseif tau == tauDual           % Partial Step
             % Update hpW, lpW and consInfo     
-            [hpW,lpW,consInfo,consInfoNum] = updatePW_del_dual(hpW,lpW,...
-                consInfo,consInfoNum,A(blockJ),ny,nu,M,P);
+            [hpW,lpW,consInfo,consInfoNum,consHaveAct] = updatePW_del_dual(hpW,lpW,...
+                consInfo,consInfoNum,consHaveAct,A(blockJ),ny,nu,M,P);
             notA = [notA;A(blockJ)];    % Note that notA is not ordered
             A(blockJ) = [];
             y(blockJ) = [];                                    

@@ -32,7 +32,11 @@ toStep2 = 0;
 for k = 1:maxIter
     if k == maxIter
         failFlag = 1;
-        error('Maximum iteration reached.');
+        xStar = x;
+        iterStar = k;
+        finalAS = A;        
+        disp('Maximum iteration reached.Dual ASM fails!');
+        %error('Maximum iteration reached.');
     end
     
     %% Step 1 Choose a violated (primal) constraint
@@ -81,7 +85,7 @@ for k = 1:maxIter
     delta_y = -Wk*GA*invH*Gq';  % Note, length(delta_y) = length(A);
     
     %% Step 4 Calculate the step length
-    if isZero(delta_x,1e-6)
+    if isZero(delta_x,1e-5)
         tauPrim = +Inf;
     else
         tauPrim = -(Gq*x-b(q))/(Gq*delta_x);
@@ -102,7 +106,7 @@ for k = 1:maxIter
     end
     
     %% Step 5 Active set update
-    if isZero(delta_x,1e-6)
+    if isZero(delta_x,1e-5)
         if tauDual == Inf
             error('QP infeasible!');
         end

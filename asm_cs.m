@@ -17,7 +17,7 @@ function [xStar, zStar, iterStar, finalAS, failFlag] = asm_cs(G,invG,c,A,b,x,w,m
 iterStar = 0;
 failFlag = 0;
 
-% Give  if the initial point is infeasible!
+% Give error if the initial point is infeasible!
 if min(A*x-b) < -1e-6
     error('Infeasible initial point!');
 end
@@ -37,7 +37,7 @@ if ~isempty(w)     % Initial hpW and lpW if w is not empty
         indexCons = w(i);
         [consInfo,consInfoNum] = addToConsInfo(indexCons,consInfo,consInfoNum,nu,ny,M,P);
     end
-    % Update hpW and lpW (only non-antecedent)
+    % Update hpW and lpW
     [hpW,lpW] = updatePW(consInfo,consInfoNum);
 end
 
@@ -134,7 +134,7 @@ for i = 1:maxIter
             % Here we check the category of the new added constraint
             [consInfo,consInfoNum] = addToConsInfo(indexCons,consInfo,consInfoNum,nu,ny,M,P);
             % Update hpW and lpW (only non-antecedent)
-            [hpW,lpW] = updatePW(consInfo,consInfoNum);
+            [hpW,lpW] = updatePW(consInfo,consInfoNum,nu,ny);
         end
     end
 end

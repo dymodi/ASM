@@ -3,7 +3,8 @@
 
 function [maxIterPrimASM,avgIterPrimASM,maxIterPrimASM_CS,avgIterPrimASM_CS,...
     maxIterDualASM,avgIterDualASM,maxIterDualASM_CS,avgIterDualASM_CS,...
-    ucTimes,tightTimes,failTimesASM,failTimesNew] = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R)
+    ucTimes,tightTimes,failTimesPrimASM,failTimesPrimASM_CS,...
+    failTimesDualASM,failTimesDualASM_CS] = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R)
 
 %% Generate Random Model
 csys = rss(nx,ny,nu);
@@ -18,7 +19,6 @@ for i = 1:ny
     Cd(i,:) = disPlant(i,:).c;
 end
 Dd = zeros(ny,nu);
-
 % Transform the model based on u to the model based on delta_u
 [A_e,B_e,C_e] = augment(Ad,Bd,Cd,Dd);
 
@@ -26,7 +26,6 @@ Dd = zeros(ny,nu);
 L1 = zeros(nx,ny);
 L2 = eye(ny,ny);
 L=[L1;L2];  
-
 % F and Phi are used to predict x and y based on delta_u
 [F,Phi] = fphi_v2(A_e,B_e,C_e,P,M);
 
@@ -106,7 +105,6 @@ end
 %     rr = [rr;Yr];
 % end
 
-
 %% Simulation Initialization
 [n,~] = size(B_e);           % Dimenson of states
 xm = zeros(nx,1);               % xm is based on x
@@ -119,20 +117,19 @@ u_k_2 = zeros(nu,1);            % u(k-2)
 delta_u2 = zeros(nu,1);
 delta_u_M_in = zeros(nu*M,1);
 delta_u_ini = 0*ones(nu*M,1);
-y_ini = 0*ones(4*nu*M,1);
 
 % G is the Hessian in the QP£ºmin 0.5*x'*G*x + c'*x   subject to:  A*x <= b
 G = Phi'*(Q*eye(ny*P,ny*P))*Phi + R*eye(nu*M,nu*M);
 
 % Records for drawing
 delta_u_draw = zeros(Nsim,nu);
-delta_u_uc_draw = zeros(Nsim,nu);
 y_draw = zeros(Nsim,ny);
 x_draw = zeros(n,Nsim);
 u_draw = zeros(Nsim,nu);
 invG = inv(G);
 diff_ASM_QUAD = [];
 diff_ASMDUAL_QUAD = [];
+diff_ASMDUAL_QUAD_CS = [];
 iter_ASM = [];
 iter_ASM_cs = [];
 iter_ASM_ws = [];
@@ -141,8 +138,10 @@ iter_ASM_dual_cs = [];
 finalAS = [];
 ucTimes = 0;        % Record the cases that optimum is unconstrained
 tightTimes = 0;     % Record the cases that no feasible solution existed
-failTimesASM = 0;
-failTimesNew = 0;
+failTimesPrimASM = 0;
+failTimesPrimASM_CS = 0;
+failTimesDualASM = 0;
+failTimesDualASM_CS = 0;
 
 % Simulation
 for kk = 1:Nsim;
@@ -202,60 +201,53 @@ for kk = 1:Nsim;
         tightTimes = tightTimes + 1;
         continue;
         %error('Correction failed!')
-    end    
-    % Solve the problem with original primal ASM
-    [delta_u_M_out_asm,~,iter,finalAS_right,failFlag] = asm(G,...
-        invG,c,-OMEGA_L,-omega_r,x_ini,[],300);       
-    iter_ASM = [iter_ASM;iter];
+    end
     
-   if failFlag == 1 || norm(delta_u_M_out_asm-delta_u_M_out) > 1e-3
-        failTimesASM = failTimesASM + 1;
+    % Solve the problem with original primal ASM
+    [delta_u_M_out_asm,~,iter,~,failFlag] = asm(G,...
+        invG,c,-OMEGA_L,-omega_r,x_ini,[],300);
+    iter_ASM = [iter_ASM;iter];
+    if failFlag == 1 || norm(delta_u_M_out_asm-delta_u_M_out) > 1e-3
+        failTimesPrimASM = failTimesPrimASM + 1;
         disp('ASM failes!');
         %error('ASM failes!');
     end
     
-    %Phase I (Generate feasible starting point)
-    x_ini = zeros(nu*M,1);
-    if max(OMEGA_L*x_ini-omega_r) > 1e-8
-        x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
-    end
-    if max(OMEGA_L*x_ini-omega_r) > 1e-8
-        error('Correction failed!')
-    end
-    % Solve the problem with ASM based on constraints selection
+    % Solve the problem with primal ASM with constraints selection
     [delta_u_M_out_asm_cs,~,iter,~,failFlag] = asm_cs(G,...
         invG,c,-OMEGA_L,-omega_r,x_ini,[],300,ny,nu,M,P);
-    iter_ASM_cs = [iter_ASM_cs;iter];
-        
+    iter_ASM_cs = [iter_ASM_cs;iter];    
     diff = norm(delta_u_M_out_asm_cs-delta_u_M_out);
     if failFlag == 1 || diff > 1e-3
-        failTimesNew = failTimesNew + 1;
+        failTimesPrimASM_CS = failTimesPrimASM_CS + 1;
         disp('ASM_cs fails.');
         %error('ASM_cs fails.');
     end
     diff_ASM_QUAD = [diff_ASM_QUAD;diff];
     
     % Solve the problem with Dual ASM
-    [delta_u_M_out_asm_dual,iter,~,failFlag] = asm_dual(G,...
+    [delta_u_M_out_asm_dual,iter_dual,~,failFlag] = asm_dual(G,...
         invG,c,-OMEGA_L,-omega_r,[],[],300);
-    iter_ASM_dual = [iter_ASM_dual;iter];        
+    iter_ASM_dual = [iter_ASM_dual;iter_dual];
     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
     if failFlag == 1 || diff > 1e-3
+        failTimesDualASM = failTimesDualASM + 1;
         disp('ASM_dual fails.');
         %error('ASM_cs fails.');
     end
     diff_ASMDUAL_QUAD = [diff_ASMDUAL_QUAD;diff];
     
-        % Solve the problem with Dual ASM
-    [delta_u_M_out_asm_dual,iter,~,failFlag] = asm_dual_cs(G,...
+    % Solve the problem with Dual ASM with constraints selection
+    [delta_u_M_out_asm_dual,iter_dual_cs,~,failFlag] = asm_dual_cs(G,...
         invG,c,-OMEGA_L,-omega_r,[],[],300,ny,nu,M,P);
-    iter_ASM_dual_cs = [iter_ASM_dual_cs;iter];        
+    iter_ASM_dual_cs = [iter_ASM_dual_cs;iter_dual_cs];
     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
     if failFlag == 1 || diff > 1e-3
-        disp('ASM_dual fails.');
+        failTimesDualASM_CS = failTimesDualASM_CS + 1;
+        disp('ASM_dual_cs fails.');
         %error('ASM_cs fails.');
     end
-    diff_ASMDUAL_QUAD = [diff_ASMDUAL_QUAD;diff];
+    diff_ASMDUAL_QUAD_CS = [diff_ASMDUAL_QUAD_CS;diff];
     
 %     % Initial point based on previous optimal active set
 %     % Phase I
