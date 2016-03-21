@@ -221,8 +221,7 @@ Lv = [];
 A  = [];
 if ml == 0  % ml == 0 means there is no general constraints
     gv = gx(1:nv,:);
-    pvStar = linsolve(Hv,-gv);
-    
+    pvStar = linsolve(Hv,-gv);    
     %test = fowSubL(Rv,-gv,1);            
     p = [pvStar;zeros(nf,1)];    
     p = permutReco(p,orderPermu,ndec,1);  

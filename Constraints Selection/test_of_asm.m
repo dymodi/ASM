@@ -3,6 +3,14 @@
 
 clc;clear;
 
+%% Add the father path into the working directroy
+currentDepth = 1; % get the supper path of the current path
+currPath = fileparts(mfilename('fullpath')); % get current path
+pos_v = strfind(currPath,filesep); 
+father_p = currPath(1:pos_v(length(pos_v)-currentDepth+1)-1); 
+% -1: delete the last character '/' or '\' 
+addpath(father_p);
+
 % %load asmFail6
 % load dualFail1
 % %load newFail1
@@ -34,19 +42,24 @@ clc;clear;
 % [xStar, zStar, iterStar] = eqp(G,inv(G),c,A,b,zeros(3,1),2);
 % [xStar, zStar] = eqp_ns(G,c,A,b,zeros(3,1),[3;1]);
 
-% Test dual ASM solvers
-% G = [4,-2;-2,4];
-% c = [6;0];
-% A = [1,1;0,1;1,0];
-% b = [1.5;0;0];
+% % Test dual ASM solvers
+% % G = [4,-2;-2,4];
+% % c = [6;0];
+% % A = [1,0;0,1;1,1];
+% % b = [0;0;2];
 % G = [2,0;0,2];
 % c = [-2;-5];
 % A = [1,0;0,1;1,-2;-1,-2;-1,2];
 % b = [0;0;-2;-6;-2];
-% [xStar_Prim, zStar_Prim, iterStar_Prim, finalAS_Prim, ~] = asm(G,...
-%     inv(G),c,A,b,zeros(4,1),[],100);
+% [xStar_Prim, ~, iterStar_Prim, finalAS_Prim, ~] = asm(G,...
+%     inv(G),c,A,b,[2;0],[2,5],100);
 % [xStar_QUAD] = quadprog(G,c,-A,-b);
-% [xStar, iterStar, finalAS, failFlag] = asm_dual(G,inv(G),c,A,b,[],[],100);
+% [xStar_cs_new, zStar, iterStar_cs_new, finalAS, failFlag] = asm_cs_new(G,...
+%     inv(G),c,A,b,[2;0],[2,5],100,[5]);
+% % [xStar_Dual, iterStar, finalAS, failFlag] = asm_dual(G,inv(G),c,A,b,[],[],100);
 
-load ..\testData\dualcsFail1.mat
-[xStar, iterStar, finalAS, failFlag] = asm_dual_cs(H,invH,g,G,b,[],[],maxIter,ny,nu,M,P);
+% load ..\testData\dualcsFail1.mat
+% [xStar, iterStar, finalAS, failFlag] = asm_dual_cs(H,invH,g,G,b,[],[],maxIter,ny,nu,M,P);
+
+load D:\Users\Work\Documents\MATLAB\ASM\deleteConsFail1.mat
+[w,consInfo,consInfoNum,hpW,lpW] = deleteCons(lambda,w,consInfo,consInfoNum,hpW,lpW);

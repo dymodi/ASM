@@ -11,7 +11,7 @@
 % zStar: Optimal objective function
 % iterStar: Iteration count
 
-function [xStar, zStar, iterStar, finalAS, failFlag] = asm_cs(G,invG,c,A,b,x,w,maxIter,ny,nu,M,P)
+function [xStar, zStar, iterStar, lpW, failFlag] = asm_cs(G,invG,c,A,b,x,w,maxIter,ny,nu,M,P)
 
 [mc,ndec] = size(A);
 iterStar = 0;
@@ -31,6 +31,8 @@ consInfoNum = zeros(1,nu*2+ny*2);
 
 hpW = [];       % High priority working set
 lpW = [];       % Low priority working set
+
+w = sort(w);
 
 if ~isempty(w)     % Initial hpW and lpW if w is not empty
     for i = 1:length(w)

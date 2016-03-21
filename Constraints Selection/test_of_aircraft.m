@@ -7,9 +7,9 @@ clc;clear;
 %% Add the father path into the working directroy
 currentDepth = 1; % get the supper path of the current path
 currPath = fileparts(mfilename('fullpath')); % get current path
-pos_v = strfind(currPath,filesep); 
-father_p = currPath(1:pos_v(length(pos_v)-currentDepth+1)-1); 
-% -1: delete the last character '/' or '\' 
+pos_v = strfind(currPath,filesep);
+father_p = currPath(1:pos_v(length(pos_v)-currentDepth+1)-1);
+% -1: delete the last character '/' or '\'
 addpath(father_p);
 
 %% Define Aircraft Model
@@ -44,7 +44,7 @@ nx = 4; nu = 2; ny = 2;
 % Create an MPC controller with plant model, sample time and horizons.
 Nsim = 100;
 P = 20;             % Prediction horizon
-M = 6;              % Control horizon
+M = 5;              % Control horizon
 Q = 10;
 R = 0.1;
 L1 = zeros(nx,ny);
@@ -128,6 +128,7 @@ iter_ASM_cs = [];
 iter_ASM_dual = [];
 iter_ASM_dual_cs = [];
 iter_ASM_ws = [];
+iter_ASM_cs_new = [];
 finalAS = [];
 
 % Simulation
@@ -144,8 +145,8 @@ for kk = 1:Nsim;
     omega_r = [U_p-aug_u_k_1;-U_n+aug_u_k_1;Y_p-F*x_k;-Y_n+F*x_k];
     c = (F*x_k-r_k)'*Q*eye(ny*P,ny*P)*Phi;
     c = c';
-        
-    delta_u_M_out = quadprog(G,c,OMEGA_L,omega_r);    
+    
+    delta_u_M_out = quadprog(G,c,OMEGA_L,omega_r);
     % Phase I (Generate feasible starting point)
     % x_ini = delta_u_M_out;
     x_ini = zeros(nu*M,1);
@@ -170,60 +171,73 @@ for kk = 1:Nsim;
     end
     [delta_u_M_out_asm_cs,~,iter,~] = asm_cs(G,invG,...
         c,-OMEGA_L,-omega_r,x_ini,[],200,ny,nu,M,P);
-    iter_ASM_cs = [iter_ASM_cs;iter];    
+    iter_ASM_cs = [iter_ASM_cs;iter];
     diff = norm(delta_u_M_out_asm_cs-delta_u_M_out);
     if diff > 1e-2
         error('ASM_cs fails.');
     end
     diff_ASM_QUAD = [diff_ASM_QUAD;diff];
-       
-     [delta_u_M_out_asm_dual, iter_dual, ~, failFlag] = asm_dual(G,inv(G),...
-        c,-OMEGA_L,-omega_r,[],[],200);
-    iter_ASM_dual = [iter_ASM_dual;iter_dual];
-    diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
-    if diff > 2*1e-2
-        error('ASM_dual fails.');
-    end
-    diff_ASM_QUAD_dual = [diff_ASM_QUAD_dual;diff];
     
-    [delta_u_M_out_asm_dual, iter_dual_cs, ~, failFlag] = asm_dual_cs(G,inv(G),...
-        c,-OMEGA_L,-omega_r,[],[],200,ny,nu,M,P);
-    iter_ASM_dual_cs = [iter_ASM_dual_cs;iter_dual_cs];
-    diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
-    if diff > 2*1e-2
-        error('ASM_dual fails.');
-    end
-    diff_ASM_QUAD_dual = [diff_ASM_QUAD_dual;diff];
-        
-    %     % Initial point based on previous optimal active set
-    %     % Phase I
-    %     x_ini = delta_u_M_out;    % Use the solution of last MPC iteration as a guess of the initial value
-    %     %if max(OMEGA_L*x_ini-omega_r) > 1e-8
-    %         if isempty(finalAS)
-    %             x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
-    %         else
-    %             Aeq = [];
-    %             beq = [];
-    %             finalASuseToformAeq = finalAS;
-    %             for j=1:length(finalAS)
-    %                 Aeq = [Aeq;OMEGA_L(finalAS(j),:)];
-    %                 beq = [beq;omega_r(finalAS(j),:)];
-    %             end
-    %             x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r,Aeq,beq);
-    %         end
-    %     %end
-    %     if (isempty(x_ini)) || (max(OMEGA_L*x_ini-omega_r) > 1e-8)
-    %         x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
-    %         finalAS = [];
-    %         if max(OMEGA_L*x_ini-omega_r) > 1e-8
-    %             error('Correction failed!')
-    %         end
+    %     [delta_u_M_out_asm_dual, iter_dual, ~, failFlag] = asm_dual(G,inv(G),...
+    %         c,-OMEGA_L,-omega_r,[],[],200);
+    %     iter_ASM_dual = [iter_ASM_dual;iter_dual];
+    %     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
+    %     if diff > 2*1e-2
+    %         error('ASM_dual fails.');
     %     end
-    %     oldfinalAS = finalAS;
-    %     %[delta_u_M_out_asm_ws,~,iter,finalAS] = asm(G,invG,c,-OMEGA_L,-omega_r,x_ini,finalAS,200);
-    %     [delta_u_M_out_asm_ws,~,iter,finalAS] = asm_cs_flight(G,invG,c,-OMEGA_L,-omega_r,x_ini,finalAS,200,ny,nu,M,P);
-    %     iter_ASM_ws = [iter_ASM_ws;iter];
+    %     diff_ASM_QUAD_dual = [diff_ASM_QUAD_dual;diff];
+    %
+    %     [delta_u_M_out_asm_dual, iter_dual_cs, ~, failFlag] = asm_dual_cs(G,inv(G),...
+    %         c,-OMEGA_L,-omega_r,[],[],200,ny,nu,M,P);
+    %     iter_ASM_dual_cs = [iter_ASM_dual_cs;iter_dual_cs];
+    %     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
+    %     if diff > 2*1e-2
+    %         error('ASM_dual fails.');
+    %     end
+    %     diff_ASM_QUAD_dual = [diff_ASM_QUAD_dual;diff];
+    
+    % Initial point based on previous optimal active set
+    % Phase I
+    x_ini = delta_u_M_out;    % Use the solution of last MPC iteration as a guess of the initial value
+    %if max(OMEGA_L*x_ini-omega_r) > 1e-8
+    if isempty(finalAS)
+        x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);        
+    else
+        Aeq = [];
+        beq = [];
+        finalASuseToformAeq = finalAS;
+        for j=1:length(finalAS)
+            Aeq = [Aeq;OMEGA_L(finalAS(j),:)];
+            beq = [beq;omega_r(finalAS(j),:)];
+        end
+        x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r,Aeq,beq);
+    end
+    %end
+    if (isempty(x_ini)) || (max(OMEGA_L*x_ini-omega_r) > 1e-8)
+        x_ini = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
+        finalAS = [];
+        if max(OMEGA_L*x_ini-omega_r) > 1e-8
+            error('Correction failed!')
+        end
+    end
+    oldfinalAS = finalAS;
+    % Only test new CS strategy but not test new warm start strategy
+    x_ini_naive = zeros(nu*M,1);
+    if max(OMEGA_L*x_ini_naive-omega_r) > 1e-8
+        x_ini_naive = linprog(zeros(nu*M,1),OMEGA_L,omega_r);
+    end
 
+    % New warm start strategy
+    x_ws_new = wsPhaseI(OMEGA_L,omega_r,finalAS,delta_u_M_out);
+    
+    % [delta_u_M_out_asm_ws,~,iter,finalAS] = asm(G,invG,c,-OMEGA_L,-omega_r,x_ini,finalAS,200);
+    % [delta_u_M_out_asm_ws,~,iter,finalAS] = asm_cs_flight(G,invG,c,-OMEGA_L,-omega_r,x_ini,finalAS,200,ny,nu,M,P);
+    % [delta_u_M_out_asm_ws,~,iter_cs_new,finalAS] = asm_cs_new(G,invG,c,-OMEGA_L,-omega_r,x_ini_naive,[],200,finalAS);
+    [delta_u_M_out_asm_ws,~,iter_cs_new,finalAS] = asm_cs_new(G,invG,c,-OMEGA_L,-omega_r,x_ws_new,finalAS,200,finalAS);
+    
+    % iter_ASM_ws = [iter_ASM_ws;iter];
+    iter_ASM_cs_new = [iter_ASM_cs_new;iter_cs_new;];
+    
     delta_u = delta_u_M_out(1:nu,1);
     u_k = u_k + delta_u;
     xm = Ad*xm + Bd*u_k;    % States updating
@@ -249,12 +263,14 @@ subplot(2,1,1); plot(y_draw(:,1),'LineWidth',2); title('y(k)');
 hold on; plot(y_draw(:,2),'LineWidth',2);
 subplot(2,1,2); stairs(u_draw(:,1),'LineWidth',2);title('u(k)');
 hold on; stairs(u_draw(:,2),'LineWidth',2);
-figure; title('Iteration count')
-plot(iter_ASM); hold on; plot(iter_ASM_cs);
-legend('Primal ASM','Primal ASM with CS');
-figure; title('Iteration count')
-plot(iter_ASM_dual);hold on;plot(iter_ASM_dual_cs);
-legend('Dual ASM','Dual ASM with CS');
+figure;
+plot(iter_ASM,'linewidth',2);% hold on; plot(iter_ASM_cs,'linewidth',2);
+hold on;plot(iter_ASM_cs_new,'linewidth',2);title('Iteration count')
+legend('Primal ASM','Primal ASM with new CS');
+% figure;
+% plot(iter_ASM_dual,'linewidth',2);hold on;plot(iter_ASM_dual_cs,'linewidth',2);
+% title('Iteration count')
+% legend('Dual ASM','Dual ASM with CS');
 % figure; title('Iteration count')
 % plot(iter_ASM); hold on; plot(iter_ASM_ws);
 % legend('Original ASM','ASM with Warm Start');

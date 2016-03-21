@@ -45,6 +45,9 @@ else
         indexCons = w(indexWforHpW);
         w(indexWforHpW) = [];
     else
+        if isempty(minIndexLp) || minIndexLp > length(lpW)
+            disp('Out of range.');
+        end
         lpW(minIndexLp) = [];
         indexCons = w(indexWforLpW);
         w(indexWforLpW) = [];

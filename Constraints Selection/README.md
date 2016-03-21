@@ -38,7 +38,7 @@ addToConsInfo.m
 updatePW.m    
 % Update high prioritys set and low priority sets according to consInfo (Note that you can choose whether to consider no-successive as higher priority in this function.)
 
-deleteCons.m
+deleteCons.m    
 % Delete a constraint from high prioritys set or low priority sets and consInfo.
 
 ---------------------------------------------------------------------------

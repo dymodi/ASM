@@ -3,9 +3,13 @@
 
 function [H, F, G, W, E] = QPformRT(N, R, Q, A, B, C, D, c_ceil, c_floor, d_ceil, d_floor,CC)
 
-global nu nx ny
-global noc nic
+%global nu nx ny
+%global noc nic
 
+[~,nu] = size(B);
+[ny,nx] = size(CC);
+
+nic = nu;
 noc = ny;
 
 

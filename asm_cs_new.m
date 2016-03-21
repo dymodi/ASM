@@ -1,42 +1,30 @@
-% A Practical Primal Active Set Method
+% A Practical Primal Active Set Method with new constraints selection 
+% strategy
 % Algorithm based on book Numerical Optimization
+% The new constraints selection can be found in ResearchNote 20160303
 % z = 1/2x'Gx + c'x, s.t. Ax>b
-% 2014.12.6
+% 2016.3.3
 % Yi DING
 % Input:
 % x: Primal feasible starting point
 % w£ºInitial working set
+% preActSet: The opimal active set of previous sampling time
 % Output:
 % xStar: Optimal variable
 % zStar: Optimal objective function value
 % iterStar: Iteration count
 
-function [xStar, zStar, iterStar, finalAS, failFlag] = asm(G,invG,c,A,b,x,w,maxIter)
-
+function [xStar, zStar, iterStar, finalAS, failFlag] = asm_cs_new(G,invG,c,A,b,x,w,maxIter,preActSet)
 
 [mc,ndec] = size(A);
 iterStar = 0;
 failFlag = 0;
 
 % Give Warrings if the initial point is infeasible!
-if min(A*x-b) < -1e-3
+if min(A*x-b) < -1e-6
     error('Infeasible initial point!');
     %display('Infeasible initial point!');
     %return;
-end
-
-% Give Errors if initial working set not compatible
-if ~isempty(w)
-    setSize = length(w);
-    Aw = zeros(setSize,ndec);
-    bw = zeros(setSize,1);
-    for j = 1:setSize
-        Aw(j,:)  = A(w(j),:);
-        bw(j,:)  = b(w(j),:);
-    end
-    if max(abs(Aw*x-bw)) > 0.001
-        error('Wrong initial working set');
-    end
 end
 
 for i = 1:maxIter
@@ -72,22 +60,51 @@ for i = 1:maxIter
         % lambda = (G*x+c)./Aw();
         lambda = linsolve(Aw',g);
         if max(isnan(lambda)) == 1
-            % error('Equation solve fails,try resolve.');
-            disp('Equation solve fails,try modification.');            
-            % Some modification to help compute lambda
-            [rAw,cAw] = size(Aw);
-            lambda = linsolve((Aw+0.001*eye(rAw,cAw))',g);
-            if max(isnan(lambda)) == 1
-                error('Modification fails.');
-            end
+            error('Equation solve fails,try resolve.');
+%             % Some modification to help compute lambda
+%             disp('Equation solve fails,try modification.');                        
+%             [rAw,cAw] = size(Aw);
+%             lambda = linsolve((Aw+0.001*eye(rAw,cAw))',g);
+%             if max(isnan(lambda)) == 1
+%                 error('Modification fails.');
+%             end
         end
         if (setSize == 0 || min(lambda) >= 0)
             xStar = x;
             finalAS = w;
             break;
         else
-            [~,index] = min(lambda);
-            w(index) = [];
+            % [~,index] = min(lambda);
+            % w(index) = [];
+            lambdaTmp = lambda;
+            wTmp = w;
+            while(~isempty(wTmp))
+                if min(lambdaTmp) >= 0
+                    % All negative lambda are preActSet
+                    % We have to delete a cons in preActSet
+                    [~,index] = min(lambda);
+                    w(index) = [];
+                    break;
+                end
+                [~,index] = min(lambdaTmp);
+                if any(preActSet == wTmp(index))    
+                    % The cons to be deleted are in preActSet
+                    % Remove the cons and find the next negative lamda
+                    wTmp(index) = [];
+                    lambdaTmp(index) = [];                    
+                else
+                    % The cons to be deleted are not in preActSet
+                    % Successfully delete the cons from working set
+                    w(find(w==wTmp(index))) = [];
+                    break;
+                end
+                if isempty(wTmp)
+                    % Special case from example in book NO
+                    [~,index] = min(lambda);
+                    w(index) = [];
+                end
+            end
+            
         end
     else
         notW = w2notW(w,mc);
