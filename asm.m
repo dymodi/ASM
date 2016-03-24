@@ -13,7 +13,6 @@
 
 function [xStar, zStar, iterStar, finalAS, failFlag] = asm(G,invG,c,A,b,x,w,maxIter)
 
-
 [mc,ndec] = size(A);
 iterStar = 0;
 failFlag = 0;

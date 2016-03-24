@@ -2,9 +2,10 @@
 % 2015.12.30
 
 
-function output = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R)
+function output = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R,solverSwitch)
 
 global LP1Failtimes LP1NotFailtimes xDelta
+maxIter = 300;
 
 %% Generate Random Model
 csys = rss(nx,ny,nu);
@@ -124,42 +125,34 @@ G = Phi'*(Q*eye(ny*P,ny*P))*Phi + R*eye(nu*M,nu*M);
 
 % Records for drawing
 delta_u_draw = zeros(Nsim,nu);
-y_draw = zeros(Nsim,ny);
-x_draw = zeros(n,Nsim);
+y_draw = zeros(Nsim,ny);    x_draw = zeros(n,Nsim);
 u_draw = zeros(Nsim,nu);
 invG = inv(G);
-diff_ASM_QUAD = [];
-diff_ASMDUAL_QUAD = [];
+diff_ASM_QUAD = [];         diff_ASMDUAL_QUAD = [];
 diff_ASMDUAL_QUAD_CS = [];
-iter_ASM = [];
-iter_ASM_cs = [];
-iter_ASM_cs_new = [];
-iter_ASM_ws = [];
-iter_ASM_ws_cs_new = [];
-iter_ASM_dual = [];
-iter_ASM_dual_cs = [];
+iter_ASM = [];              iter_ASM_cs = [];
+iter_ASM_cs_new = [];       iter_ASM_ws = [];
+iter_ASM_ws_cs_new = [];    iter_ASM_dual = [];
+iter_ASM_dual_cs = [];      iter_WGS = [];
+time_QUAD = [];             time_WGS = [];
 data_max_delta_u = [];
 finalAS = [];
 lpW = [];
 ucTimes = 0;        % Record the cases that optimum is unconstrained
 tightTimes = 0;     % Record the cases that no feasible solution existed
-failTimesPrimASM = 0;
-failTimesPrimASM_CS = 0;
-failTimesPrimASM_WS = 0;
-failTimesPrimASM_CS_New = 0;
-failTimesPrimASM_WS_CS_New = 0;
-failTimesDualASM = 0;
+failTimesPrimASM = 0;           failTimesPrimASM_CS = 0;
+failTimesPrimASM_WS = 0;        failTimesPrimASM_CS_New = 0;
+failTimesPrimASM_WS_CS_New = 0; failTimesDualASM = 0;
 failTimesDualASM_CS = 0;
 
-% Here we set a fixed refereÄãce
+% Here we set a fixed reference
 rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
 
-% Here we try to do some EMPC approximation
-C_empc = eye(nx,nx);
-D_empc = eye(nu,nu);
-[H_empc, F_empc, G_empc, W_empc, E_empc] = QPformRT(P, R*eye(nu,nu),...
-    Q*eye(ny,ny), Ad, Bd, C_empc,D_empc, Ymax, Ymin, Umax, Umin,Cd);
-
+% % Here we try to do some EMPC approximation
+% C_empc = eye(nx,nx);
+% D_empc = eye(nu,nu);
+% [H_empc, F_empc, G_empc, W_empc, E_empc] = QPformRT(P, R*eye(nu,nu),...
+%     Q*eye(ny,ny), Ad, Bd, C_empc,D_empc, Ymax, Ymin, Umax, Umin,Cd);
 
 % Simulation
 for kk = 1:Nsim;
@@ -169,20 +162,20 @@ for kk = 1:Nsim;
     x_k_old = x_k;
     x_k = A_e * x_k + B_e * (u_k_1 - u_k_2);    % Prediction
     x_k = x_k + L * (y_k - C_e * x_k);          % Correction
-    xDelta = [xDelta;norm(x_k_old - x_k)]; 
+    % xDelta = [xDelta;norm(x_k_old - x_k)];
     u_k_2 = u_k_1;
-    u_k_1 = u_k;      
+    u_k_1 = u_k;
     
     oldFinalAS = finalAS;
     oldDelta_u_M_out = delta_u_M_out_asm;
     oldLpW = lpW;
     
-%     % Generate random x_k and u_k_1
-%     x_k_old = x_k;
-%     x_k = 0.4*rand(n,1)-0.2*ones(n,1);
-%     xDelta = [xDelta;norm(x_k_old - x_k)];    
-%     % u_k_1 = 0.7*((Umax-Umin)*rand(nu,1)+Umin*ones(nu,1));
-%     u_k_1 = zeros(nu,1);
+    %     % Generate random x_k and u_k_1
+    %     x_k_old = x_k;
+    %     x_k = 0.4*rand(n,1)-0.2*ones(n,1);
+    %     xDelta = [xDelta;norm(x_k_old - x_k)];
+    %     % u_k_1 = 0.7*((Umax-Umin)*rand(nu,1)+Umin*ones(nu,1));
+    %     u_k_1 = zeros(nu,1);
     
     % The following generate a random reference
     % rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
@@ -197,9 +190,9 @@ for kk = 1:Nsim;
         aug_u_k_1 = [aug_u_k_1;u_k_1];
     end
     
-%     % Constraints with delta_u, u and y
-%     omega_r = [delta_U_p;-delta_U_n;U_p-aug_u_k_1;-U_n+aug_u_k_1;...
-%        Y_p-F*x_k;-Y_n+F*x_k];
+    %     % Constraints with delta_u, u and y
+    %     omega_r = [delta_U_p;-delta_U_n;U_p-aug_u_k_1;-U_n+aug_u_k_1;...
+    %        Y_p-F*x_k;-Y_n+F*x_k];
     % Constraints with u and y
     omega_r = [U_p-aug_u_k_1;-U_n+aug_u_k_1;Y_p-F*x_k;-Y_n+F*x_k];
     % Constraints with delta_u, and u
@@ -208,7 +201,13 @@ for kk = 1:Nsim;
     c = (F*x_k-r_k)'*Q*eye(ny*P,ny*P)*Phi;
     c = c';
     
-    delta_u_M_out = quadprog(G,c,OMEGA_L,omega_r);
+    if solverSwitch.QUAD == 1
+        tic
+        delta_u_M_out = quadprog(G,c,OMEGA_L,omega_r);
+        time = toc;
+        time_QUAD = [time_QUAD;time];
+    end
+    
     % Here we check wether the problem is too tight
     if isempty(delta_u_M_out)
         tightTimes = tightTimes + 1;
@@ -231,73 +230,75 @@ for kk = 1:Nsim;
         continue;
         %error('Correction failed!')
     end
-       
     
     % We have to use a uniformed starting point for comparison
     if isempty(oldDelta_u_M_out)
         disp('empty initial?');
+        pause;
     end
     [x_ini,~,~] = wsPhaseI(OMEGA_L,omega_r,oldFinalAS,oldDelta_u_M_out,2);
     
-    % Solve the problem with original primal ASM
-    [delta_u_M_out_asm,~,iterASM,finalAS,failFlag] = asm(G,...
-        invG,c,-OMEGA_L,-omega_r,x_ini,[],300);
-    iter_ASM = [iter_ASM;iterASM];
-    if failFlag == 1 || norm(delta_u_M_out_asm-delta_u_M_out) > 1e-3
-        failTimesPrimASM = failTimesPrimASM + 1;
-        disp('ASM failes!');
-        %error('ASM failes!');
+    if solverSwitch.ASM == 1
+        % Solve the problem with original primal ASM
+        [delta_u_M_out_asm,~,iterASM,finalAS,failFlag] = asm(G,...
+            invG,c,-OMEGA_L,-omega_r,x_ini,[],maxIter);
+        iter_ASM = [iter_ASM;iterASM];
+        if failFlag == 1 || norm(delta_u_M_out_asm-delta_u_M_out) > 1e-3
+            failTimesPrimASM = failTimesPrimASM + 1;
+            disp('ASM failes!');
+        end
     end
     
-%     % Solve with Primal ASM with Gionata's Constraints Selection
-    [delta_u_M_out_asm_cs,~,iter,lpW,failFlag] = asm_cs(G,...
-        invG,c,-OMEGA_L,-omega_r,x_ini,[],300,ny,nu,M,P);
-%     iter_ASM_cs = [iter_ASM_cs;iter];
-%     diff = norm(delta_u_M_out_asm_cs-delta_u_M_out);
-%     if failFlag == 1 || diff > 1e-3
-%         failTimesPrimASM_CS = failTimesPrimASM_CS + 1;
-%         disp('ASM_cs fails.');
-%         %error('ASM_cs fails.');
-%     end
-%     diff_ASM_QUAD = [diff_ASM_QUAD;diff];
-    
-    % Solve the problem with Xu's Constraints Selection
-    [delta_u_M_out_asm_cs_new,~,iter,~,failFlag] = asm_cs_new(G,...
-        invG,c,-OMEGA_L,-omega_r,x_ini,[],200,oldFinalAS);
-    iter_ASM_cs_new = [iter_ASM_cs_new;iter];
-    diff = norm(delta_u_M_out_asm_cs_new-delta_u_M_out);
-    if failFlag == 1 || diff > 1e-3
-        failTimesPrimASM_CS_New = failTimesPrimASM_CS_New + 1;
-        disp('ASM_cs_new fails.');
-        % error('ASM_cs fails.');
+    if solverSwitch.ASM_CS == 1
+        % Solve with Primal ASM with Gionata's Constraints Selection
+        [delta_u_M_out_asm_cs,~,iter,lpW,failFlag] = asm_cs(G,...
+            invG,c,-OMEGA_L,-omega_r,x_ini,[],maxIter,ny,nu,M,P);
+        iter_ASM_cs = [iter_ASM_cs;iter];
+        diff = norm(delta_u_M_out_asm_cs-delta_u_M_out);
+        if failFlag == 1 || diff > 1e-3
+            failTimesPrimASM_CS = failTimesPrimASM_CS + 1;
+            disp('ASM_cs fails.');
+        end
+        diff_ASM_QUAD = [diff_ASM_QUAD;diff];
     end
     
-    %     % Solve with Dual ASM
-    %     [delta_u_M_out_asm_dual,iter_dual,~,failFlag] = asm_dual(G,...
-    %         invG,c,-OMEGA_L,-omega_r,[],[],300);
-    %     iter_ASM_dual = [iter_ASM_dual;iter_dual];
-    %     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
-    %     if failFlag == 1 || diff > 1e-3
-    %         failTimesDualASM = failTimesDualASM + 1;
-    %         disp('ASM_dual fails.');
-    %         % error('ASM_cs fails.');
-    %     end
-    %     diff_ASMDUAL_QUAD = [diff_ASMDUAL_QUAD;diff];
+    if solverSwitch.ASM_CS_NEW == 1
+        % Solve the problem with Xu's Constraints Selection
+        [delta_u_M_out_asm_cs_new,~,iter,~,failFlag] = asm_cs_new(G,...
+            invG,c,-OMEGA_L,-omega_r,x_ini,[],maxIter,oldFinalAS);
+        iter_ASM_cs_new = [iter_ASM_cs_new;iter];
+        diff = norm(delta_u_M_out_asm_cs_new-delta_u_M_out);
+        if failFlag == 1 || diff > 1e-3
+            failTimesPrimASM_CS_New = failTimesPrimASM_CS_New + 1;
+            disp('ASM_cs_new fails.');
+        end
+    end
     
-    %     % Solve the problem with Dual ASM with constraints selection
-    %     [delta_u_M_out_asm_dual,iter_dual_cs,~,failFlag] = asm_dual_cs(G,...
-    %         invG,c,-OMEGA_L,-omega_r,[],[],300,ny,nu,M,P);
-    %     iter_ASM_dual_cs = [iter_ASM_dual_cs;iter_dual_cs];
-    %     diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
-    %     if failFlag == 1 || diff > 1e-3
-    %         failTimesDualASM_CS = failTimesDualASM_CS + 1;
-    %         disp('ASM_dual_cs fails.');
-    %         % error('ASM_cs fails.');
-    %     end
-    %     diff_ASMDUAL_QUAD_CS = [diff_ASMDUAL_QUAD_CS;diff];
+    if solverSwitch.ASM_DUAL == 1
+        % Solve with Dual ASM
+        [delta_u_M_out_asm_dual,iter_dual,~,failFlag] = asm_dual(G,...
+            invG,c,-OMEGA_L,-omega_r,[],[],maxIter);
+        iter_ASM_dual = [iter_ASM_dual;iter_dual];
+        diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
+        if failFlag == 1 || diff > 1e-3
+            failTimesDualASM = failTimesDualASM + 1;
+            disp('ASM_dual fails.');
+        end
+        diff_ASMDUAL_QUAD = [diff_ASMDUAL_QUAD;diff];
+    end
     
-    % Solve with Warm Start
-    
+    if solverSwitch.ASM_DUAL_CS == 1
+        % Solve the problem with Dual ASM with constraints selection
+        [delta_u_M_out_asm_dual,iter_dual_cs,~,failFlag] = asm_dual_cs(G,...
+            invG,c,-OMEGA_L,-omega_r,[],[],300,ny,nu,M,P);
+        iter_ASM_dual_cs = [iter_ASM_dual_cs;iter_dual_cs];
+        diff = norm(delta_u_M_out_asm_dual-delta_u_M_out);
+        if failFlag == 1 || diff > 1e-3
+            failTimesDualASM_CS = failTimesDualASM_CS + 1;
+            disp('ASM_dual_cs fails.');
+        end
+        diff_ASMDUAL_QUAD_CS = [diff_ASMDUAL_QUAD_CS;diff];
+    end
     
     %     % Initial point based on previous optimal active set
     %     % My old wrong method, for comparison
@@ -327,59 +328,69 @@ for kk = 1:Nsim;
     %         end
     %     end
     
+    %     [Kax, Lax, cx, clambda] = calPara(G_empc, W_empc, E_empc, H_empc, F_empc, finalAS, -1);
+    %     residual1 = Lax*x_k+clambda;
     
     
-%     [Kax, Lax, cx, clambda] = calPara(G_empc, W_empc, E_empc, H_empc, F_empc, finalAS, -1);    
-%     residual1 = Lax*x_k+clambda;
-    
-    max_delta_u = max(abs(oldDelta_u_M_out(1:nu)));
-    data_max_delta_u = [data_max_delta_u;max_delta_u];
-    if  max_delta_u > 0.05*(Umax-Umin)
-        [x_ws,LP1Fail,iniW] = wsPhaseI(OMEGA_L,omega_r,oldLpW,oldDelta_u_M_out,2);
-    else
-        [x_ws,LP1Fail,iniW] = wsPhaseI(OMEGA_L,omega_r,oldLpW,oldDelta_u_M_out,1);
+    if solverSwitch.ASM_WS == 1 || solverSwitch.ASM_WS_CS == 1
+        % Decide whether use warm start according to u change
+        max_delta_u = max(abs(oldDelta_u_M_out(1:nu)));
+        data_max_delta_u = [data_max_delta_u;max_delta_u];
+        if  max_delta_u > 0.05*(Umax-Umin)
+            [x_ws,LP1Fail,iniW] = wsPhaseI(OMEGA_L,omega_r,oldLpW,oldDelta_u_M_out,2);
+        else
+            [x_ws,LP1Fail,iniW] = wsPhaseI(OMEGA_L,omega_r,oldLpW,oldDelta_u_M_out,1);
+        end
+        if LP1Fail == 1
+            LP1Failtimes = LP1Failtimes + 1;
+        else
+            LP1NotFailtimes = LP1NotFailtimes + 1;
+        end
     end
     
-        
-    % [x_ws,LP1Fail,iniW] = wsPhaseI(OMEGA_L,omega_r,oldFinalAS,oldDelta_u_M_out,1);        
+
     
-    if LP1Fail == 1
-        LP1Failtimes = LP1Failtimes + 1;
-    else
-        LP1NotFailtimes = LP1NotFailtimes + 1;
-    end
-    [delta_u_M_out_asm_ws,~,iter,finalASws,failFlag] = asm(G,...
-        invG,c,-OMEGA_L,-omega_r,x_ws,iniW,300);
-    iter_ASM_ws = [iter_ASM_ws;iter];
-    diff = norm(delta_u_M_out_asm_ws-delta_u_M_out);
-    if failFlag == 1 || diff > 1e-3
-        failTimesPrimASM_WS = failTimesPrimASM_WS + 1;
-        disp('ASM_ws fails.');
-        % error('ASM_ws fails.');
-    end
-    if iter > iterASM
-        disp('Worse than Priaml ASM');
-    end
-        
+    if solverSwitch.ASM_WS == 1
+        % Solve with Warm Start
+        [delta_u_M_out_asm_ws,~,iter,finalASws,failFlag] = asm(G,...
+            invG,c,-OMEGA_L,-omega_r,x_ws,iniW,maxIter);
+        iter_ASM_ws = [iter_ASM_ws;iter];
+        diff = norm(delta_u_M_out_asm_ws-delta_u_M_out);
+        if failFlag == 1 || diff > 1e-3
+            failTimesPrimASM_WS = failTimesPrimASM_WS + 1;
+            disp('ASM_ws fails.');
+        end
+        if iter > iterASM
+            disp('Worse than Priaml ASM');
+            pause;
+        end
+    end    
     
-    % Solve with Xu's Constraints Selection and new Warm Start
-    %     if norm(x_k_old-x_k) < 0.5
-    [delta_u_M_out_asm_ws_cs_new,~,iter,~,failFlag] = asm_cs_new(G,...
-        invG,c,-OMEGA_L,-omega_r,x_ws,iniW,300,finalAS);
-%     [delta_u_M_out_asm_ws_cs_new,~,iter,~,failFlag] = asm_cs(G,...
-%             invG,c,-OMEGA_L,-omega_r,x_ws,iniW,300,ny,nu,M,P);
-    %     else
-    %         [delta_u_M_out_asm_cs_new,~,iter_cs_new,finalAS] = asm_cs_new(G,...
-    %             invG,c,-OMEGA_L,-omega_r,x_ini_naive,[],200,finalAS);
-    %     end
-    iter_ASM_ws_cs_new = [iter_ASM_ws_cs_new;iter];
-    diff = norm(delta_u_M_out_asm_ws_cs_new-delta_u_M_out);
-    if diff > 1e-3 || failFlag == 1
-        failTimesPrimASM_WS_CS_New = failTimesPrimASM_WS_CS_New + 1;
+    if solverSwitch.ASM_WS_CS == 1
+        % Solve with Xu's Constraints Selection and new Warm Start
+        [delta_u_M_out_asm_ws_cs_new,~,iter,~,failFlag] = asm_cs_new(G,...
+            invG,c,-OMEGA_L,-omega_r,x_ws,iniW,maxIter,finalAS);
+        iter_ASM_ws_cs_new = [iter_ASM_ws_cs_new;iter];
+        diff = norm(delta_u_M_out_asm_ws_cs_new-delta_u_M_out);
+        if diff > 1e-3 || failFlag == 1
+            failTimesPrimASM_WS_CS_New = failTimesPrimASM_WS_CS_New + 1;
+        end
+        if iter > iterASM
+            disp('Worse than Priaml ASM');
+        end
     end
-    if iter > iterASM
-        disp('Worse than Priaml ASM');
-    end
+    
+    if solverSwitch.WGS == 1
+        % Solve with WGS
+        [delta_u_M_out_wgs, time, iter] = wgsSolver(G, c, -OMEGA_L,...
+            -omega_r, [], [], x_ini, [], [], 2);
+        time_WGS = [time_WGS;time];
+        iter_WGS = [iter_WGS;iter];
+        diff = norm(delta_u_M_out_wgs-delta_u_M_out);
+        if diff > 1e-3
+            error('WGS fails.');
+        end
+    end        
     
     % The followings are used to do simulations
     delta_u = delta_u_M_out(1:nu,1);

@@ -1,3 +1,14 @@
 # Ignore some files
 
 *.obj
+*.exe
+*.ilk
+*.pdb
+*.idb
+*.ipch
+*.sdf
+*.suo
+*.tlog
+*.log
+*.lastbuildstate
+*.cache

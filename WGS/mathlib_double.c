@@ -4,6 +4,8 @@
  *  Created on: 2015-9-3
  *      Author: Yi
  *	Mathematical calculations for wgsQP
+ *  Unified code for VS and MATLAB
+ *	Some conflicts between VS and MATLAB version can be found in comments
  *
  */
 
@@ -37,9 +39,6 @@ void show_matrixInt(int *m, int w, int h) {
 
 // Find the minimum one of a vector.
 double vec_min(double *x, int n) {
-
-
-	
 	double min;
 	int i;
 	min = x[0];
@@ -52,7 +51,6 @@ double vec_min(double *x, int n) {
 
 // Return the index of the minimum element
 int minIndex(double *x, int n) {
-
 	double min;
 	int i, index;
 	min = x[0];
@@ -126,8 +124,7 @@ void matTrans_vec(double *A, double *x, int row, int col, double *b) {
 }
 
 //Do the multiplication x'*A = b;
-void vec_mat(double *A, double *x, int row, int col, double *b)
-{
+void vec_mat(double *A, double *x, int row, int col, double *b) {
 	int i,j;
 	for(j=0;j<col;j++) {
 		b[j]=0;
@@ -151,8 +148,6 @@ double dot_product(double *a, double *b, int n) {
 // Swap a vector/matrix v at two rows p1 and p2
 // p1 and p2 is from 1 to n (not 0 to n-1)
 void swapVecF(double *v, int p1, int p2, int col, double *tmp, int flag) {
-
-	
 	// flag == 0 means to swap rows
 	// flag == 1 means to swap columns (now col is actually rows)
 	int i;
@@ -173,7 +168,7 @@ void swapVecF(double *v, int p1, int p2, int col, double *tmp, int flag) {
 			v[i*col+(p2-1)] = tmp[i];
 	}
 	else
-		printf("Wrong flags!\n");
+		Print("Wrong flags!\n");
 }
 
 // Swap a vector(matrix not included) v at two positions p1 and p2
@@ -212,13 +207,11 @@ void swapMat(double *m, int p1, int p2, int n, double *tmp) {
 void permut(double *oriMat, int *p, int m, int n, double *mat) {
 
 	int i,j;
-
 	for (i = 0; i < m; i++) {
 		for (j = 0; j < n; j++) {
 			mat[i*n+j] = oriMat[p[i]*n+j];
 		}		
 	}	
-
 	for (i = 0; i < m*n; i++)
 		oriMat[i] = mat[i];
 }
@@ -238,28 +231,21 @@ void permutReco(double *mat, int *p,  int m, int n, double *oriMat) {
 		mat[i] = oriMat[i];
 }
 
-
 // A Cholesky Factorization routine from the book Numerical Recipes in C
 // Maybe codes from NRC are more robust?
-int chol_NRC(double *A, int n,double *p)
-{
+int chol_NRC(double *A, int n,double *p) {
 	int i,j,k;
 	int flag = 1;
 
 	double sum;
 
 	for (i=1;i<=n;i++) {
-
 		for (j=i;j<=n;j++) {
-
 			for (sum=A[(i-1)*n+(j-1)],k=i-1;k>=1;k--) {
-
 				sum -= A[(i-1)*n+(k-1)]*A[(j-1)*n+(k-1)];
 			}
 			if (i == j) {
-
 				if (sum <= 0.0) {
-
 					printf("Factorization Failed.\n");
 					flag = 0;
 				}
@@ -271,13 +257,34 @@ int chol_NRC(double *A, int n,double *p)
 	return flag;
 }
 
+// Cholesky decomposition.
+// Rosetta.
+void cholesky(double *A, int n, double *L)
+{	
+	int i,j,k;
+	double s;
+	//double *L = (double*)calloc(n * n, sizeof(double));
+	//   if (L == NULL)
+	//       exit(EXIT_FAILURE);
+
+   for (i = 0; i < n; i++)
+       for (j = 0; j < (i+1); j++) {
+       	s = 0;
+           for (k = 0; k < j; k++)
+               s += L[i * n + k] * L[j * n + k];
+				L[i * n + j] = (i == j) ?
+           			sqrt(A[i * n + i] - s) :
+						//sqrtsp(A[i * n + i] - s) :
+                          (1.0 / L[j * n + j] * (A[i * n + j] - s));
+       }
+
+   //return L;
+}
+
 // Transpose the matrix m and store the matrix in w.
-void transpose(double *m, int w, int h)
-{
+void transpose(double *m, int w, int h) {
 	int start, next, i;
-
 	double tmp;
-
 	for (start = 0; start <= w * h - 1; start++) {
 		next = start;
 		i = 0;
@@ -292,6 +299,45 @@ void transpose(double *m, int w, int h)
 			m[next] = (i == start) ? tmp : m[i];
 			next = i;
 		} while (next > start);
+	}
+}
+
+// Do back substatution to solve linear equation using LU.
+void luEvaluate(double *L,double *U, double*b,int n,double *x,double *y) {	
+	int i,j;
+	double temp = 0;
+	if(x == NULL || y == NULL)
+		exit(0);
+
+	for (i = 0; i < n; i++)
+		y[i] = 0;
+
+	//Foward solve Ly = b;
+	y[0] = b[0]/L[0];
+	for(i=1;i<n;i++)
+	{
+		for(j=0;j<i;j++)
+		{
+			temp += L[i*n+j]*y[j];
+		}
+		y[i] = b[i] - temp;
+		y[i] = y[i]/L[i*n+i];
+		temp = 0;
+	}
+	//show_matrix(y,1,n);
+
+	//Backward solve Ux = y
+	x[n-1] = y[n-1]/U[n*n-1];
+	temp = 0;
+	for(i=n-2;i>=0;i--)
+	{
+		for(j=i+1;j<n;j++)
+		{
+			temp += U[i*n+j]*x[j];
+		}
+		x[i] = y[i] - temp;
+		x[i] = x[i]/U[i*n+i];
+		temp = 0;
 	}
 }
 
@@ -329,8 +375,7 @@ void FowSubL(double *L, double *b, int n, double *y, int flag) {
 		}
 	}
 	else
-		printf("Wrong flag!\n");
-
+		Print("Wrong flag!\n");
 }
 
 // Solve a linear system with upper-triangular matrix using backward substitution
@@ -367,20 +412,15 @@ void BacSubU(double *U, double *y, int n, double *x, int flag) {
 		} 
 	}
 	else 
-		printf("Wrong flag!\n");
-
-
+		Print("Wrong flag!\n");
 }
-
 
 // Inverse an upper-triangular matrix using backward substitution
 // invR = inv(R), where R is an upper-triangular 
 void uInv(double *R, int n, double *invR) {
 
 	int i, j, k;
-
 	double tmp;
-
 	for (i = 0; i < n; i++)
 		for (j = 0; j < i; j++)
 			invR[i*n+j] = 0;
@@ -462,11 +502,7 @@ int isZero(double *v, int n, double epsilon) {
 // Do the Givens rotation for a two-element vector
 // G is a 2*2 matrix
 void myplanerot(double x1, double x2, double *G) {
-
-
-
 	double r;
-
 	if (x2 < 0.0000001 && x2 > -0.0000001) {
 		G[0] = 1;
 		G[1] = 0;
@@ -488,7 +524,6 @@ void myplanerot(double x1, double x2, double *G) {
 void formRot(double *G, int i, int j, int m, double *P) {
 	
 	int k1, k2;
-
 	for (k1 = 0; k1 < m*m; k1 ++)
 		P[k1] = 0;
 	for (k1 = 0; k1 < m; k1++)
@@ -498,16 +533,13 @@ void formRot(double *G, int i, int j, int m, double *P) {
 	P[(j-1)*m+(j-1)] = G[3];
 	P[(i-1)*m+(j-1)] = G[1];
 	P[(j-1)*m+(i-1)] = G[2];
-
 }
 
 // Rotation of two rows to produce zero on the below row
 // Note, here m is the column of the mat
 // i and j is from 1 to m
 void rowRot(double *mat, double *G, int m, int i, int j) {
-
-	int k;
-	
+	int k;	
 	double tmp1, tmp2;	
 	for (k = 0; k < m; k++) {
 		tmp1 = mat[(i-1)*m+k];
@@ -532,6 +564,39 @@ void colRot(double *mat, double *G, int m, int n, int i, int j) {
 	}
 }
 
+// QR decomposition using Givens rotation
+// A = Q * R;
+// size(A) =[row,col]; size(Q) = [row, row]; size(R) = [row, col]; size(G) = [2,2];
+// Note: the elements in A will be changed
+void qr(double *A, int row, int col, double *Q, double *G) {
+
+	int i,j, colTimes;
+
+	for (i = 0; i < row*row; i++)
+		Q[i] = 0;
+	for (i = 0; i < row; i++)
+		Q[i*row+i] = 1;
+
+	if (row > col)
+		colTimes = col;
+	else
+		colTimes = row-1;
+
+	for (i = 0; i < colTimes; i++) {
+		for (j = 0; j < row-1-i; j++) {			
+			myplanerot(A[(row-j-2)*col+i],A[(row-j-1)*col+i],G);
+			printf("%f and %f\n",A[(row-j-2)*col+i],A[(row-j-1)*col+i]);
+			rowRot(A,G,col,(row-j-1),(row-j));
+			rowRot(Q,G,row,(row-j-1),(row-j));
+			printf("G:\n");show_matrix(G,2,2);putchar('\n');
+			printf("Q:\n");show_matrix(Q,row,row);putchar('\n');
+			printf("R:\n");show_matrix(A,col,row);putchar('\n');
+			
+		}
+	}
+	transpose(Q,row,row);
+}
+
 // Modified Gram-Schmidt QR factorization.     
 // Reference:
 //       N. J. Higham, Accuracy and Stability of Numerical Algorithms,
@@ -539,10 +604,8 @@ void colRot(double *mat, double *G, int m, int n, int i, int j) {
 //       Philadelphia, PA, 2002; sec 19.8. Gram-Schmidt QR factorization.
 // [m, n] = size(A); [m, n] = size(Q);	[n, n] = size(R);
 void gs_m(double *A, int m, int n, double *Q, double *R) {
-
+	
 	int i, j, k, l;
-
-
 	double en;
 
 	for (i = 0; i < m*n; i++)
@@ -572,9 +635,7 @@ void gs_m(double *A, int m, int n, double *Q, double *R) {
 				A[j*n+k] = A[j*n+k] - Q[j*n+i]*R[i*n+k];
 			}
 		}
-
 	}
-
 }
 
 /*  The main routine */
@@ -587,6 +648,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 	double *xStar, int *iterPoint, int maxIter) {
 
 	// Variables declaration
+	int iniCheckFlag = 0;	// Whether we want to do initial checking
 	double alpha;
 	int nv = ndec - nf;
 	int i, j, index, indexJ;
@@ -597,15 +659,29 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 	int flag = 1;
 	int tmpFlag = 0;
 	int needCheckFlag = 0;
+	//FILE *fp_Rv, *fp_invRv, *fp_H;
 	//FILE *fp_tT, *fp_iniT, *fp_abT, *fp_agT, *fp_dbT, *fp_dgT, *fp_alphaT, *fp_plRtT;
 
+	//fp_Rv = fopen("Rv.txt","w");
+	//fp_invRv = fopen("invRv.txt","w");
+	//fp_H = fopen("H.txt","w");
+
+	//// Varaibles check
+	////printf("H:\n"); show_matrix(H_ori,ndec,ndec); putchar('\n');
+	//for (i = 0; i < ndec; i++) {
+	//	for (j = 0; j < ndec; j++) {
+	//		fprintf(fp_H,"%lf\t",H_ori[i*ndec+j]);
+	//	}
+	//	putchar('\n');
+	//}
+	//printf("c:\n"); show_matrix(c_ori,ndec,1); putchar('\n');
+	//printf("nf: %d, ml: %d\n",nf,ml);
+	//printf("x:\n"); show_matrix(x,ndec,1); putchar('\n');
 
 	// Time recording
 	//double totalTime, iniTime, AdBdTime, AdGeTime, DeBdTime, DeGeTime, alphaTime, planeRotTime;	
-
 	//clock_t totalStart, totalEnd, iniStart, iniEnd, plRtStart, plRtEnd;		
 	//clock_t abStart, abEnd, agStart, agEnd, dbStart, dbEnd, dgStart, dgEnd, aStart, aEnd;
-
 
 	//fp_tT = fopen("totalTime.txt","r");
 	//fp_iniT = fopen("initialTime.txt","r");
@@ -639,48 +715,50 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 	//totalStart = clock();
 	//iniStart = clock();
 
-	//// Here we check whether the intial x is feasible with given constraints
-	//for (i = 0; i<nbc; i++) {
-	//	if (x[i] < lx[i]-0.000001 || x[i] > ux[i]+0.000001) {
-	//		Print("Initial x infeasible with bound constraint!\n");
-	//		return 0;
-	//	}
+	// Here we check whether the intial x is feasible with given constraints
+	if (iniCheckFlag == 1) {
+		for (i = 0; i<nbc; i++) {
+			if (x[i] < lx[i]-0.000001 || x[i] > ux[i]+0.000001) {
+				Print("Initial x infeasible with bound constraint!\n");
+				return 0;
+			}
+			mat_vec(AA,x,ngc,ndec,tmpVec1);		// tmpVec1 = AA * x;
+			vec_sub(tmpVec1,lg,ngc,tmpVec1);		// tmpVec1 = AA * x - lg;
+			if (vec_min(tmpVec1,ngc) < -0.000001) {
+				Print("Initial x infeasible with general constraint!\n");
+				return 0;
+			}
+		}										// tmpVec1 Free
 
-	//	mat_vec(AA,x,ngc,ndec,tmpVec1);		// tmpVec1 = AA * x;
-	//	vec_sub(tmpVec1,lg,ngc,tmpVec1);		// tmpVec1 = AA * x - lg;
-	//	if (vec_min(tmpVec1,ngc) < -0.000001) {
-	//		Print("Initial x infeasible with general constraint!\n");
-	//		return 0;
-	//	}
-	//}										// tmpVec1 Free
-
-	//// Here we check whether the initial x accords with the initial working set
-	//for (i = 0; i < nf; i++) {
-	//	consIndex = wf[i];
-	//	if (consIndex <= nbc) {
-	//		if (x[consIndex-1] - lx[consIndex-1] > 0.000000001) {
-	//			Print("Initial x does not fit with initial working set! (Bound constraint)\n");
-	//			flag = 0;
-	//		}
-	//	}
-	//	else {
-	//		if (x[consIndex-1-nbc]- ux[consIndex-1-nbc] > 0.000000001) {
-	//			Print("Initial x does not fit with initial working set! (Bound constraint)\n");
-	//			flag = 0;
-	//		}
-	//	}
-	//}
-	//for (i = 0; i < ml; i++) {
-	//	consIndex = wl[i];
-	//	for (j = 0; j < ndec; j++) {
-	//		tmpVec1[j] = AA[(consIndex-1)*ndec+j];	// tmpVec1 = AA(consIndex,:);
-	//	}
-	//	if (dot_product(tmpVec1,x,ndec) - lg[consIndex-1] > 0.000000001) {
-	//		Print("Initial x does not fit with initial working set! (General constraint)\n");
-	//		flag = 0;
-	//	}
-	//}												// tmpVec1 Free.
-
+		// Here we check whether the initial x accords with the initial working set
+		// 注意这里的变量有冲突，MATLAB里是nbc，VS里是ndec
+		// 这里相信VS中的变量
+		for (i = 0; i < nf; i++) {
+			consIndex = wf[i];
+			if (consIndex <= ndec) {
+				if (x[consIndex-1] - lx[consIndex-1] > 0.000000001) {
+					Print("Initial x does not fit with initial working set! (Bound constraint)\n");
+					flag = 0;
+				}
+			}
+			else {
+				if (x[consIndex-1-ndec]- ux[consIndex-1-ndec] > 0.000000001) {
+					Print("Initial x does not fit with initial working set! (Bound constraint)\n");
+					flag = 0;
+				}
+			}
+		}
+		for (i = 0; i < ml; i++) {
+			consIndex = wl[i];
+			for (j = 0; j < ndec; j++) {
+				tmpVec1[j] = AA[(consIndex-1)*ndec+j];	// tmpVec1 = AA(consIndex,:);
+			}
+			if (dot_product(tmpVec1,x,ndec) - lg[consIndex-1] > 0.000000001) {
+				Print("Initial x does not fit with initial working set! (General constraint)\n");
+				flag = 0;
+			}
+		}												// tmpVec1 Free.
+	}
 
 	// Here order is used to keep track of the order change of decision variables
 	for (i = 0; i < ndec; i++) 
@@ -726,7 +804,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 		tmpMat1[i*ndec+i] = tmpVec1[i];
 	for (i = 0; i < ndec; i++)
 		for (j = i+1; j < ndec; j++)
-			tmpMat1[i*ndec+j] = 0;					// tmpMat1 = R';
+			tmpMat1[i*ndec+j] = 0;	// tmpMat1 = R';
 
 	for (i = 0; i < nv; i++)
 		for (j = 0; j < nv; j++)
@@ -739,6 +817,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 			tmpVec1[i] = -gx[i];
 		//Print("Rv':\n"); show_matrix(tmpMat1,nv,nv); Print("\n");
 		//Print("-gv:\n"); show_matrix(tmpVec1,nv,1); Print("\n");	
+		//Print("orderPermu:\n"); show_matrixInt(orderPermu,ndec,1); putchar('\n');	
 		FowSubL(Rv,tmpVec1,nv,tmpMat2,1);	// tmpMat2 = MIDDLE
 		BacSubU(Rv,tmpMat2,nv,p,0);
 
@@ -767,7 +846,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 		transpose(Lv, ml, ml);
 
 		// Initial value of auxiliary vectors
-		FowSubL(Rv, gx, nv, uv, 1);
+		FowSubL(Rv, gx, nv, uv, 1);			// tmpVec1 = gv;
 		matTrans_vec(Yv,uv,nv,ml,vl);
 		mat_vec(Yv,vl,nv,ml,wv);
 		vec_sub(wv,uv,nv,wv);
@@ -797,7 +876,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 			}
 
 			 // Decide the changes in the working set according to pStar
-			if (isZero(p, ndec, 0.00001) == 1) {	
+			if (isZero(p, ndec, 0.00001) == 1) {			// NOTE: here the choice of 0.0001 is unsafe!
 				if (ml == 0) {
 					for (i = 0; i < nf; i++) {
 						if (wf[i] <= nbc)
@@ -807,16 +886,20 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 					}
 				}
 				else {
+					//Print("Lv:\n"); show_matrix(Lv,ml,ml); putchar('\n');
+					//Print("vl:\n"); show_matrix(vl,ml,1); putchar('\n');
 					BacSubU(Lv,vl,ml,lambdal,1);
 					for (i = 0; i < nf; i++) {
 						tmpVec1[i] = 0;
 						for (j = 0; j < nv; j++)
 							tmpVec1[i] += H[j*ndec+i+nv]*pvStar[j];
 					}
+					//Print("K'*pvStar: \n"); show_matrix(tmpVec1,nf,1); putchar('\n');
 
 					for (i = 0; i < nf; i++)
 						lambdaf[i] = gx[i+nv] + tmpVec1[i];
 
+					//Print("Af:\n"); show_matrix(Af,nf,ml); putchar('\n');
 					matTrans_vec(Af,lambdal,ml,nf,tmpVec1);		// tmpVec1 = Af'*lambdal
 					vec_sub(lambdaf,tmpVec1,nf,lambdaf);
 					for (i = 0; i < nf; i++)
@@ -838,12 +921,9 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 				else {
 					minLambdal = vec_min(lambdal,ml);
 					minLambdaf = vec_min(lambdaf,nf);
-					if ((ml == 0) || ((nf > 0 ) && (minLambdaf < minLambdal))) {	
-
+					if ((ml == 0) || ((nf > 0 ) && (minLambdaf < minLambdal))) {
+						// Delete a bound constraint
 						//dbStart = clock();
-
-						// Delete a bound constraint
-						// Delete a bound constraint
 
 						index = minIndex(lambda, nf+ml);
 						indexJ = wf[index] % nbc;
@@ -880,7 +960,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 
 						// Recover Av before Rv is updated
 						matTrans_mul(Yv,nv,ml,Rv,nv,tmpMat1);					// tmpMat1 = Yv'*Rv;
-						mat_mul(Lv,ml,ml,tmpMat1,nv,tmpMat4);					// tmpMat4 = Av;	
+						mat_mul(Lv,ml,ml,tmpMat1,nv,tmpMat4);					// tmpMat4 = Av;
 
 						for (i = 0; i < (nv+1); i++) 
 							for (j = 0; j < nv+1; j++) 
@@ -891,8 +971,8 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 
 						if (ml == 0) {
 							for (i = 0; i < nv; i++)
-								tmpMat2[i] = -gx[i];							// tmpMat2 = -gv;
-							FowSubL(Rv,tmpMat2,nv,tmpMat1,1);					// tmpMat1 = MIDDLE
+								tmpMat2[i] = -gx[i];						// tmpMat2 = -gv;
+							FowSubL(Rv,tmpMat2,nv,tmpMat1,1);				// tmpMat1 = MIDDLE
 							BacSubU(Rv,tmpMat1,nv,pvStar,0);
 							for (i = 0; i < nv; i++)
 								p[i] = pvStar[i];
@@ -915,13 +995,12 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 							for (i = 0; i < ml; i++)
 								for (j = 0; j < nf; j++)
 									Af[i*nf+j] = Af[i*(nf+1)+j+1];
-
+							//Print("Af:\n"); show_matrix(Af,nf,ml); putchar('\n');
 							for (i = 0; i < ml; i++)
 								for (j = 0; j < nv-1; j++)
 									tmpMat1[i*nv+j] =  tmpMat4[i*(nv-1)+j];
 							for (i = 0; i < ml; i++)
 								tmpMat1[i*nv+nv-1] = tmpMat3[i];				// tmpMat1 = Av_bar;							
-
 							mat_vec(tmpMat1,tmpMat2,ml,nv,tmpMat3);				// tmpMat3 = v;
 
 							// Updates
@@ -950,7 +1029,6 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 								tmpMat2[i*(ml+1)+ml] = 0;
 							for (i = 0; i < ml; i++)
 								tmpMat2[(nv-1)*(ml+1)+i] = 0;					// tmpMat2 = [Yv,zeros(nv-1,1);zeros(1,ml),1];
-
 							tmpMat2[(nv-1)*(ml+1)+ml] = 1;						// tmpMat2 = YvP;
 
 							for (i = 0; i < ml; i++) {
@@ -969,7 +1047,6 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 									Yv[i*ml+j] = tmpMat2[i*(ml+1)+j];
 							for (i = 0; i < nv; i++)
 								tmpMat1[i] = tmpMat2[i*(ml+1)+ml];				// tmpMat1 = z_bar;
-
 							for (i = 0; i < ml; i++)
 								vl[i] = tmpVec1[i];
 							ve = tmpVec1[ml];									// Here ve is the v in m-file
@@ -993,11 +1070,11 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 						//DeBdTime += (dbEnd-dbStart);
 					}
 					else {
+						// Delete a general constraint
+						// Delete a general constraint
 
 						//dgStart = clock();
 
-						// Delete a general constraint
-						// Delete a general constraint
 						index = minIndex(lambdal, ml);
 						isInWl[wl[index]-1] = 0;
 						for (i = 0; i < ml-1; i++) 
@@ -1007,7 +1084,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 						//Print("wl (Del):\n");show_matrixInt(wl,ml,1);Print("\n");
 						if (ml == 0) {
 							for (i = 0; i < nv; i++)
-								tmpVec1[i] = -gx[i];				// tmpVec1 = -gv;							
+								tmpVec1[i] = -gx[i];				// tmpVec1 = -gv;
 							FowSubL(Rv,tmpVec1,nv,tmpMat2,1);		// tmpMat2 = MIDDLE
 							BacSubU(Rv,tmpMat2,nv,pvStar,0);
 							for (i = 0; i < nv; i++)
@@ -1017,7 +1094,6 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 							permutReco(p,orderPermu,ndec,1,tmpMat6);
 							//Print("p is:\n");show_matrix(p,ndec,1);Print("\n");
 						}
-
 						else {
 							for (i = 0; i < (ml+1)*(ml+1); i++)		// Here use ml+1 because ml has been updated
 								tmpMat1[i] = Lv[i];
@@ -1036,12 +1112,10 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 								rowRot(vl, G, 1, index+i+1, index+2+i);					// Rotate vl;
 								colRot(tmpMat2, G, nv, ml+1, index+i+1, index+2+i);		// Rotate YP;												
 							}
-
 							ve = vl[ml];
 							for (i = 0; i < ml; i++)
 								for (j = 0; j < ml; j++)
 									Lv[i*ml+j] = tmpMat1[i*(ml+1)+j];
-
 							for (i = 0; i < nv; i++)
 								for (j = 0; j < ml; j++)
 									Yv[i*ml+j] = tmpMat2[i*(ml+1)+j];	
@@ -1050,11 +1124,14 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 							for (i = 0; i < nv; i++)
 								tmpMat1[i] = alpha * wv[i];						// tmpMat1 = alpha * wv;
 							vec_add(uv,tmpMat1,nv,uv);					
-
 							
 							for (i = 0; i < nv; i++)
 								wv[i] = (1-alpha)*wv[i] - ve*tmpVec1[i];
-
+							//Print("wv is:\n");show_matrix(wv,nv,1);putchar('\n');
+							//Print("vl is:\n");show_matrix(vl,ml,1);putchar('\n');
+							//Print("uv is:\n");show_matrix(uv,nv,1);putchar('\n');
+							//Print("Yv:\n"); show_matrix(Yv,ml,nv); putchar('\n');
+							//Print("Lv:\n"); show_matrix(Lv,ml,ml); putchar('\n');
 
 							// Update Af
 							for (i = 0; i < ml; i++) {
@@ -1068,15 +1145,13 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 							//// Check code
 							//matTrans_mul(Yv,nv,ml,Rv,nv,tmpMat1);
 							//mat_mul(Lv,ml,ml,tmpMat1,nv,tmpMat3);
-// 							for (i = 0; i < ml; i++) {
-// 								for (j = 0; j < ndec; j++) 
-// 									tmpVec1[j] = AA[(wl[i]-1)*ndec+j];		// tmpVec1 = AA(wl(i),:);
-// 								permut(tmpVec1, orderPermu, ndec, 1,tmpMat6);
-// 								for (j = 0; j < nv; j++)
-// 									tmpMat1[i*nv+j] = tmpVec1[j];			// tmpMat1 = Av;
-// 							}
-
-
+ 							//for (i = 0; i < ml; i++) {
+ 							//	for (j = 0; j < ndec; j++) 
+ 							//		tmpVec1[j] = AA[(wl[i]-1)*ndec+j];		// tmpVec1 = AA(wl(i),:);
+ 							//	permut(tmpVec1, orderPermu, ndec, 1,tmpMat6);
+ 							//	for (j = 0; j < nv; j++)
+ 							//		tmpMat1[i*nv+j] = tmpVec1[j];			// tmpMat1 = Av;
+ 							//}
 							//vec_sub(Av,tmpMat3,nv*ml,tmpMat4);
 							//for (i = 0; i < nv*ml; i++) {
 							//	if (tmpMat4[i] > 0.000001 || tmpMat4[i] < -0.000001) {
@@ -1097,7 +1172,6 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 								p[i] = 0;					
 							permutReco(p,orderPermu,ndec,1,tmpMat6);
 							//Print("p is:\n");show_matrix(p,ndec,1);Print("\n");
-
 						}
 						//dgEnd = clock();
 						////DeGeTime += (double)(dgEnd-dgStart)/CLOCKS_PER_SEC;
@@ -1106,8 +1180,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 				}
 			}
 			else {
-				//aStart = clock();
-				
+				//aStart = clock();				
 				// Calculate alpha				
 				alpha = 1;
 				addBoundConstraint = 0;
@@ -1140,7 +1213,6 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 							ap = 0.0;
 							for (j = 0; j < ndec; j++) {
 								ap += AA[i*ndec+j]*p[j];
-
 							}
 							if (ap < 0) {
 								tmp = 0.0;
@@ -1187,7 +1259,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 					if ((addBoundConstraint == 1) && (addGeneralConstraint == 0)) {					
 						
 						//abStart = clock();
-						
+
 						// Adding a bound constraint
 						for (i = nf; i > 0; i--) 
 							wf[i] = wf[i-1];
@@ -1229,7 +1301,6 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 						for (i = 0; i < nv-1; i++)
 							for (j = 0; j < nv-1; j++)
 								Rv[i*(nv-1)+j] = tmpMat1[i*nv+j];	// tmpMat1 = Rv_hat;
-						
 						swapVecI(orderPermu,indexJ,nv);
 						swapMat(H,indexJ,nv,ndec,tmpMat6);
 						swapVecF(gx,indexJ,nv,1,tmpMat6,0);				
@@ -1238,7 +1309,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 						nf = nf + 1;
 
 						if (ml == 0) {
-							
+							// This is a compulsive assignment
 							if (nf == ndec) {
 								for (i = 0; i < ndec; i++)
 									pvStar[i] = 0;
@@ -1275,9 +1346,9 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 									tmpMat5[i*(ml+1)+j] = tmpMat3[i*ml+j];	
 							for (i = 0; i < nv+1; i++)
 								tmpMat5[i*(ml+1)+ml] = tmpVec1[i];				// tmpMat5 = QYz	// QYzTrans: (ml+1)*(nv+1)
-
-
-                                                                                								
+							//transpose(tmpMat5,ml+1,nv+1);						// tmpMat5 = QYzTrans;										
+                             
+							// Update Af
 							for (i = 0; i < ml; i++)
 								tmpVec2[i] = AA[(wl[i]-1)*ndec+orderPermu[nv]];
 
@@ -1288,6 +1359,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 							for (i = 0; i < ml; i++)
 								for (j = 0; j < nf-1; j++)
 									Af[i*nf+j+1] = tmpMat1[i*(nf-1)+j];
+							//Print("Af:\n"); show_matrix(Af,nf,ml); putchar('\n');
 
 							for (i = 0; i < (ml+1)*(ml+1); i++)
 								P[i] = 0;
@@ -1299,10 +1371,13 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
                                 myplanerot(tmpMat5[nv*(ml+1)+ml],tmpMat5[(nv*(ml+1)+ml-(i+1))],G);
                                 colRot(tmpMat5, G, nv+1, ml+1, ml+1,ml+1-(i+1));
 								colRot(P, G, ml+1,ml+1,ml+1,ml+1-(i+1));
+								// 注意，在原来VS的版本中是下面两行，上面两行MATLAB版本中的应该是改进过的
+								//rowRot(tmpMat5, G, nv+1,ml+1,ml+1-(i+1));
+								//rowRot(P, G, ml+1,ml+1,ml+1-(i+1));
 							}
 							//plRtEnd = clock();
 							//planeRotTime += (plRtEnd - plRtStart);
-
+							//transpose(P,ml+1,ml+1);
 
 							for (i = 0; i < nv+1; i++)
 								for (j = 0; j < ml; j++)
@@ -1323,7 +1398,6 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 							for (i = 0; i < ml; i++)
 								for (j = 0; j < ml; j++)
 									Lv[i*ml+j] = tmpMat2[i*(ml+1)+j];
-
 
 							for (i = 0; i < nv+1; i++)
 								tmpVec1[i] = uv[i] + alpha * wv[i];				// tmpVec1 = uv+alpha*wv;
@@ -1369,17 +1443,34 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 						if (ml == 1) {
 							uInv(Rv, nv, tmpMat2);							// tmpMat2 = inv(Rv);
 							for (i = 0; i < nv; i++)
-								tmpMat1[i] = tmpVec1[i];					// tmpMat1 = Av;		
+								tmpMat1[i] = tmpVec1[i];					// tmpMat1 = Av;
 							for (i = nv; i < ndec; i++)
 								Af[i-nv] = tmpVec1[i];							
-							mat_mul(tmpMat1,ml,nv,tmpMat2,nv,tmpMat3);		// tmpMat3 = AinvR';							
+							
+							mat_mul(tmpMat1,ml,nv,tmpMat2,nv,tmpMat3);		// tmpMat3 = AinvR';
+							//Print("AinvR':\n"); show_matrix(tmpMat3,nv,ml); putchar('\n');
+
+							// 这是MATLAB下的新版本，可以通过randomMPC的初步测试
 							gs_m(tmpMat3, nv, ml, Yv, Lv);
 							transpose(Lv, ml, ml);
-
 							FowSubL(Rv, gx, nv, uv, 1);	
 							matTrans_vec(Yv,uv,nv,ml,vl);
 							mat_vec(Yv,vl,nv,ml,wv);
-							vec_sub(wv,uv,nv,wv);			
+							vec_sub(wv,uv,nv,wv);	
+
+							//// 这是VS下的版本，暂时注释掉，如果上面MATLAB版本的代码出现问题可以考察这个
+							//gs_m(tmpMat3, nv, ml, Yv, Lv);
+							//transpose(Lv, ml, ml);
+							//mat_mulTrans(Lv,ml,ml,Yv,nv,tmpMat2);
+							//printf("AinvR(recover)':\n"); show_matrix(tmpMat2,nv,ml); putchar('\n');							
+							//FowSubL(Rv, gx, nv, uv, 1);	
+							//printf("uv:\n"); show_matrix(uv,nv,1); putchar('\n');
+							//matTrans_vec(Yv,uv,nv,ml,vl);
+							//mat_vec(Yv,vl,nv,ml,wv);
+							//vec_sub(wv,uv,nv,wv);								
+							//printf("Lv:\n"); show_matrix(Lv,ml,ml); putchar('\n');
+							//printf("vl:\n"); show_matrix(vl,ml,1); putchar('\n');
+							//printf("Yv:\n"); show_matrix(Yv,ml,nv); putchar('\n');
 						}
 						else {
 							FowSubL(Rv, tmpVec1, nv, tmpVec2, 1);			// tmpVec2 = q;
@@ -1413,13 +1504,15 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 							for (i = 0; i < nv; i++)
 								tmpVec2[i] = uv[i] + alpha*wv[i];			// tmpVec2 = uv_bar;
 							ve = (1-alpha)*dot_product(tmpMat5,uv,nv);
+							//Print("ve:%lf\n",ve);
 							vl[ml-1] = ve;
 							for (i = 0; i < nv; i++)
 								wv[i] = (1-alpha)*wv[i]+ve*tmpMat5[i];
+							
 							// Update Af
 							for (i = 0; i < nf; i++)
 								Af[(ml-1)*nf+i] = tmpVec1[i+nv];
-
+							//Print("Af:\n"); show_matrix(Af,nf,ml); putchar('\n');
 							for (i = 0; i < nv*ml; i++)
 								Yv[i] = tmpMat1[i];
 							for (i = 0; i < ml*ml; i++)
@@ -1427,60 +1520,60 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 							for (i = 0; i < nv; i++)
 								uv[i] = tmpVec2[i];
 
+							//Print("Yv:\n"); show_matrix(Yv,ml,nv); putchar('\n');
+							//Print("Lv:\n"); show_matrix(Lv,ml,ml); putchar('\n');
+							//Print("vl:\n"); show_matrix(vl,ml,1); putchar('\n');
 
+ 							//// 正常状态下校验Yv'*wv
+ 							//matTrans_vec(Yv,wv,nv,ml,tmpVec1);
+ 							//Print("Yv'*wv (Normal):\n"); show_matrix(tmpVec1,nv,1); Print("\n");
 
-
-
-
-// 							// 正常状态下校验Yv'*wv
-// 							matTrans_vec(Yv,wv,nv,ml,tmpVec1);
-// 							Print("Yv'*wv (Normal):\n"); show_matrix(tmpVec1,nv,1); Print("\n");
-
-// 							if (needCheckFlag == 1) {	// Imprecision may happen
-// 								tmpMat3[ml-1] = gamma;
-// 								matTrans_mul(Yv,nv,ml,Rv,nv,tmpMat1);
-// 								vec_mat(tmpMat1,tmpMat3,ml,nv,tmpMat2);
-// 								maxDiff = 0;
-// 								for (i = 0; i < nv; i++) {
-// 									diff = tmpVec1[i] - tmpMat2[i];
-// 									if ( diff > maxDiff)
-// 										maxDiff = diff;
-// 									else if (-diff > maxDiff)
-// 										maxDiff = -diff;
-
-// 								}
-
-
-// 								if (maxDiff > 0.0005) {		// Threshold need to be set
-// 									// Update Error, initialize factorization
-// 									// Get Av
-
-// 									for (i = 0; i < ml; i++) {
-// 										for (j = 0; j < ndec; j++) 
-// 											tmpVec1[j] = AA[(wl[i]-1)*ndec+j];		// tmpVec1 = AA(wl(i),:);
-// 										permut(tmpVec1, orderPermu, ndec, 1,tmpMat6);
-// 										for (j = 0; j < nv; j++)
-// 											tmpMat1[i*nv+j] = tmpVec1[j];			// tmpMat1 = Av;
-
-// 									}
-// 									// Inverse Rv and QR factorize Av
-// 									uInv(Rv, nv, tmpMat2);							// tmpMat2 = invRv;
-// 									mat_mul(tmpMat1, ml, nv, tmpMat2, nv, tmpMat3);	// tmpMat3 = AinvR;		
-// 									transpose(tmpMat3, nv, ml);		
-// 									gs_m(tmpMat3, nv, ml, Yv, Lv);
-// 									transpose(Lv, ml, ml);
-// 									// Initial value of auxiliary vectors
-// 									//FowSubL(tmpMat1, tmpVec1, nv, uv, 0);			// tmpVec1 = gv; //这行好像有问题，是怎么通过测试的？
-// 									FowSubL(Rv, gx, nv, uv, 1);				// tmpVec1 = gv;
-
-// 									matTrans_vec(Yv,uv,nv,ml,vl);
-// 									mat_vec(Yv,vl,nv,ml,wv);
-// 									vec_sub(wv,uv,nv,wv);
-
-
-// 								}
-
-// 							}
+ 							//if (needCheckFlag == 1) {	// Imprecision may happen
+ 							//	tmpMat3[ml-1] = gamma;
+ 							//	matTrans_mul(Yv,nv,ml,Rv,nv,tmpMat1);
+ 							//	vec_mat(tmpMat1,tmpMat3,ml,nv,tmpMat2);
+ 							//	maxDiff = 0;
+ 							//	for (i = 0; i < nv; i++) {
+ 							//		diff = tmpVec1[i] - tmpMat2[i];
+ 							//		if ( diff > maxDiff)
+ 							//			maxDiff = diff;
+ 							//		else if (-diff > maxDiff)
+ 							//			maxDiff = -diff;
+ 							//	}
+ 							//	if (maxDiff > 0.0005) {		// Threshold need to be set
+ 							//		// Update Error, initialize factorization
+ 							//		// Get Av
+ 							//		for (i = 0; i < ml; i++) {
+ 							//			for (j = 0; j < ndec; j++) 
+ 							//				tmpVec1[j] = AA[(wl[i]-1)*ndec+j];		// tmpVec1 = AA(wl(i),:);
+ 							//			permut(tmpVec1, orderPermu, ndec, 1,tmpMat6);
+ 							//			for (j = 0; j < nv; j++)
+ 							//				tmpMat1[i*nv+j] = tmpVec1[j];			// tmpMat1 = Av;
+ 							//		}
+ 							//		// Inverse Rv and QR factorize Av
+ 							//		uInv(Rv, nv, tmpMat2);							// tmpMat2 = invRv;
+ 							//		mat_mul(tmpMat1, ml, nv, tmpMat2, nv, tmpMat3);	// tmpMat3 = AinvR;		
+ 							//		transpose(tmpMat3, nv, ml);		
+ 							//		gs_m(tmpMat3, nv, ml, Yv, Lv);
+ 							//		transpose(Lv, ml, ml);
+ 							// 这里对于 MATLAB 和 VS 有两个不同的版本，合并如下
+							// MATLAB 版本为：
+							//		// Initial value of auxiliary vectors
+ 							//		//FowSubL(tmpMat1, tmpVec1, nv, uv, 0);			// tmpVec1 = gv; //这行好像有问题，是怎么通过测试的？
+ 							//		FowSubL(Rv, gx, nv, uv, 1);						// tmpVec1 = gv;
+ 							//		matTrans_vec(Yv,uv,nv,ml,vl);
+ 							//		mat_vec(Yv,vl,nv,ml,wv);
+ 							//		vec_sub(wv,uv,nv,wv); 							
+							// VS 版本为：
+							//		// Initial value of auxiliary vectors
+							//		for (i = 0; i < nv; i++)
+							//			tmpVec1[i] = gx[i];
+							//		FowSubL(tmpMat1, tmpVec1, nv, uv, 0);			// tmpVec1 = gv;
+							//		matTrans_vec(Yv,uv,nv,ml,vl);
+							//		mat_vec(Yv,vl,nv,ml,wv);
+							//		vec_sub(wv,uv,nv,wv);
+							//	}
+ 							//}
                            
 						}
 						if (ml == ndec) {
@@ -1490,19 +1583,16 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 						}
 						else {
 							BacSubU(Rv, wv, nv, p, 0);
-						}
-						
+						}						
 						for (i = 0; i < nv; i++)
 							pvStar[i] = p[i];
 						for (i = nv; i < ndec; i++)
 							p[i]  = 0;		
 						permutReco(p,orderPermu,ndec,1,tmpMat6);	
 						//Print("p is:\n");show_matrix(p,ndec,1);Print("\n");
-
 						//agEnd = clock();
 						////AdGeTime += (double)(agEnd-agStart)/CLOCKS_PER_SEC;
 						//AdGeTime += (agEnd-agStart);
-
 					}
 					else {
 						Print("Add constraint error!\n");
@@ -1510,21 +1600,19 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 						break;
 					}
 				}
-				else {		// If alpha == 1, p is solved again without changing working set
-
+				else {		
+                    // If alpha == 1, p is solved again without changing working set
                    
-//                     // 这里采用新的思路，即 alpha == 1 的时候就把 p 置为0				
-// 					for (i = 0; i < ndec; i++) {
-// 						p[i] = 0;
-// 						pvStar[i] = 0;
-// 					}
-
-
+                    // // 这里采用新的思路，即 alpha == 1 的时候就把 p 置为0
+ 					//for (i = 0; i < ndec; i++) {
+ 					//	p[i] = 0;
+ 					//	pvStar[i] = 0;
+ 					//}
                     
 					if (ml == 0) {
 						for (i = 0; i < nv; i++)
 							tmpVec1[i] = -gx[i];				// tmpVec1 = -gv;
-						FowSubL(Rv,tmpVec1,nv,tmpVec2,1);	// tmpVec2 = MIDDLE
+						FowSubL(Rv,tmpVec1,nv,tmpVec2,1);		// tmpVec2 = MIDDLE
 						BacSubU(Rv,tmpVec2,nv,pvStar,0);
 						for (i = 0; i < nv; i++)
 							p[i] = pvStar[i];
@@ -1546,8 +1634,7 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 							p[i]  = 0;		
 						permutReco(p,orderPermu,ndec,1,tmpMat6);	
 						//Print("p is:\n");show_matrix(p,ndec,1);Print("\n");
-					}
-                    
+					}                    
 				}
 			}
 		}
@@ -1585,3 +1672,27 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 
 	return flag;
 }
+
+///* Primal ASM solver in C code */
+///* Details can be found in the MATLAB implementation of ASM */
+///* Mar. 22th, 2016 */
+///* Yi Ding */
+//int asm(double *H_ori, double *invH_ori, double *c_ori, double *AA, double *lg, 
+//	double *x, int ndec, int ml, 
+//	double *H, double *invH, double *c, double *p, double *gx, 
+//	double *lambda, double *tmpVec1, double *tmpVec2, 
+//	double *tmpMat1, double *tmpMat2, double *tmpMat3, 
+//	double *tmpMat4, double *tmpMat5, double *tmpMat6,
+//	double *xStar, int *iterPoint, int maxIter) {
+//
+//	Print("x is: %d\n");
+//	show_matrix(x,1,ndec);
+//
+//	for (i = 0; i < ndec*ndec; i++)
+//		H[i] = H_ori[i];
+//	for (i = 0; i < ndec*ndec; i++)
+//		invH[i] = invH_ori[i];
+//	for (i = 0; i < ndec; i++)
+//		c[i] = c_ori[i];
+//
+//}

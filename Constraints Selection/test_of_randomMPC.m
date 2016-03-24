@@ -9,6 +9,17 @@ LP1Failtimes = 0;
 LP1NotFailtimes = 0;
 xDelta = [];
 
+%% Choose the solver
+solverSwitch.QUAD = 1;
+solverSwitch.ASM = 1;
+solverSwitch.ASM_CS = 0;
+solverSwitch.ASM_CS_NEW = 0;
+solverSwitch.ASM_WS = 0;
+solverSwitch.ASM_WS_CS = 0;
+solverSwitch.ASM_DUAL = 0;
+solverSwitch.ASM_DUAL_CS = 0;
+solverSwitch.WGS = 1;
+
 %% Add the father path into the working directroy
 currentDepth = 1; % get the supper path of the current path
 currPath = fileparts(mfilename('fullpath')); % get current path
@@ -16,6 +27,7 @@ pos_v = strfind(currPath,filesep);
 father_p = currPath(1:pos_v(length(pos_v)-currentDepth+1)-1);
 % -1: delete the last character '/' or '\'
 addpath(father_p);
+addpath([father_p,'\wgs']);
 
 Ts = 0.5;         % Sampling time
 Nsim = 30;         % Simulation length
@@ -58,34 +70,48 @@ for i = 1:testSizeIO
         P = j*10;
         M = j+5;
         P = M;
-        output = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R);               
+        output = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R,solverSwitch);               
         dataUcTimes(i,j) = output.ucTimes;
         dataTightTimes(i,j) = output.tightTimes;
         dataSolveTimes(i,j) = Nsim - output.ucTimes - output.tightTimes;
         if dataSolveTimes(i,j) == 0
             continue;
         end
-        dataMaxIterPrimASM(i,j) = output.maxIterPrimASM;
-        % dataMaxIterPrimASM_CS(i,j) = output.maxIterPrimASM_CS;
-        dataMaxIterPrimASM_CS_New(i,j) = output.maxIterPrimASM_CS_New;
-        dataMaxIterPrimASM_WS(i,j) = output.maxIterPrimASM_WS;
-        dataMaxIterPrimASM_WS_CS_New(i,j) = output.maxIterPrimASM_WS_CS_New;
-        dataAvgIterPrimASM(i,j) = output.avgIterPrimASM;
-        % dataAvgIterPrimASM_CS(i,j) = output.avgIterPrimASM_CS;
-        dataAvgIterPrimASM_WS(i,j) = output.avgIterPrimASM_WS;
-        dataAvgIterPrimASM_CS_New(i,j) = output.avgIterPrimASM_CS_New;        
-        dataAvgIterPrimASM_WS_CS_New(i,j) = output.avgIterPrimASM_WS_CS_New;
-        % dataMaxIterDualASM(i,j) = output.maxIterDualASM;
-        % dataMaxIterDualASM_CS(i,j) = output.maxIterDualASM_CS;
-        % dataAvgIterDualASM(i,j) = output.avgIterDualASM;
-        % dataAvgIterDualASM_CS(i,j) = output.avgIterDualASM_CS;
-        dataFailTimesPrimASM(i,j) = output.failTimesPrimASM;
-        dataFailTimesPrimASM_CS(i,j) = output.failTimesPrimASM_CS;
-        dataFailTimesPrimASM_CS_New(i,j) = output.failTimesPrimASM_CS_New;
-        dataFailTimesPrimASM_WS(i,j) = output.failTimesPrimASM_WS;
-        dataFailTimesPrimASM_WS_CS_New(i,j) = output.failTimesPrimASM_WS_CS_New;
-        % dataFailTimesDualASM(i,j) = output.failTimesDualASM;
-        % dataFailTimesDualASM_CS(i,j) = output.failTimesDualASM_CS;
+        if solverSwitch.ASM == 1
+            dataMaxIterPrimASM(i,j) = output.maxIterPrimASM;
+            dataAvgIterPrimASM(i,j) = output.avgIterPrimASM;
+            dataFailTimesPrimASM(i,j) = output.failTimesPrimASM;
+        end
+        if solverSwitch.ASM_CS == 1
+            dataMaxIterPrimASM_CS(i,j) = output.maxIterPrimASM_CS;
+            dataAvgIterPrimASM_CS(i,j) = output.avgIterPrimASM_CS;
+            dataFailTimesPrimASM_CS(i,j) = output.failTimesPrimASM_CS;
+        end
+        if solverSwitch.ASM_CS_NEW == 1
+            dataMaxIterPrimASM_CS_New(i,j) = output.maxIterPrimASM_CS_New;
+            dataAvgIterPrimASM_CS_New(i,j) = output.avgIterPrimASM_CS_New;   
+            dataFailTimesPrimASM_CS_New(i,j) = output.failTimesPrimASM_CS_New;
+        end
+        if solverSwitch.ASM_DUAL == 1
+            dataMaxIterDualASM(i,j) = output.maxIterDualASM;
+            dataAvgIterDualASM(i,j) = output.avgIterDualASM;
+            dataFailTimesDualASM(i,j) = output.failTimesDualASM;
+        end
+        if solverSwitch.ASM_DUAL_CS == 1
+            dataMaxIterDualASM_CS(i,j) = output.maxIterDualASM_CS;
+            dataAvgIterDualASM_CS(i,j) = output.avgIterDualASM_CS;
+            dataFailTimesDualASM_CS(i,j) = output.failTimesDualASM_CS;
+        end
+        if solverSwitch.ASM_WS == 1
+            dataMaxIterPrimASM_WS(i,j) = output.maxIterPrimASM_WS;
+            dataAvgIterPrimASM_WS(i,j) = output.avgIterPrimASM_WS;
+            dataFailTimesPrimASM_WS(i,j) = output.failTimesPrimASM_WS;
+        end
+        if solverSwitch.ASM_WS_CS == 1
+            dataMaxIterPrimASM_WS_CS_New(i,j) = output.maxIterPrimASM_WS_CS_New;
+            dataAvgIterPrimASM_WS_CS_New(i,j) = output.avgIterPrimASM_WS_CS_New;
+            dataFailTimesPrimASM_WS_CS_New(i,j) = output.failTimesPrimASM_WS_CS_New;
+        end        
     end
 end
 

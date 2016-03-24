@@ -22,6 +22,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	float *lambdaf, *lambdal, *lambda, *tmpVec1, *tmpVec2;
 	float *tmpMat1, *tmpMat2, *tmpMat3, *tmpMat4, *tmpMat5, *tmpMat6;
 	int32_T *isInWl, *orderPermu, *iter;
+    mwSignedIndex dims[2];
 
 	size_t i;
 
@@ -76,18 +77,20 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	//for (i = 0; i < ndec; i++)
 	//	Print("%f  ",AA[i]);
 
-	/* create the output matrix */
-	plhs[0] = mxCreateNumericMatrix(ndec,1,mxSINGLE_CLASS,mxREAL); // Creat a single matrix
-
-	/* get a pointer to the real data in the output matrix */
+    /* create the output matrix */
+    plhs[0] = mxCreateNumericMatrix(ndec,1,mxSINGLE_CLASS,mxREAL); // Creat a single matrix
+    dims[0] = 1;
+    dims[1] = 1;
+    plhs[1] = mxCreateNumericArray(2,dims,mxUINT32_CLASS,mxREAL);
+    /* get a pointer to the real data in the output matrix */
     xStar = mxGetPr(plhs[0]);
-
-	/* call the computational routine */
-	wgsQP(H, c, AA, lx, ux, lg, wf, wl, nf, ml, x, ndec, nbc, ngc,
-		orderPermu, H_ori, c_ori, Af, Lv, Yv, Rv,
-		pvStar, p, gx, isInWl,uv,vl,wv,
-		lambdal,lambdaf,lambda, P,G,
-		tmpVec1, tmpVec2, tmpMat1, tmpMat2, tmpMat3, tmpMat4, tmpMat5, tmpMat6,
-		xStar,iter,maxIter);
-
+    iter = mxGetPr(plhs[1]);
+    
+    /* call the computational routine */
+    wgsQP(H, c, AA, lx, ux, lg, wf, wl, nf, ml, x, ndec, nbc, ngc,
+            orderPermu, H_ori, c_ori, Af, Lv, Yv, Rv,
+            pvStar, p, gx, isInWl,uv,vl,wv,
+            lambdal,lambdaf,lambda, P,G,
+            tmpVec1, tmpVec2, tmpMat1, tmpMat2, tmpMat3, tmpMat4, tmpMat5, tmpMat6,
+            xStar,iter,maxIter);    
 }

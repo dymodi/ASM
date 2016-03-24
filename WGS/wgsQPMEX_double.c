@@ -5,14 +5,12 @@
  *
  */
 
-
 #include "mex.h"
 #include "mathlib_double.c"
 //#include <time.h>
 
 /* The gateway function */
 void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
-
 
 	double *H, *c; 
 	double *AA, *lg;
@@ -26,10 +24,11 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	double *H_ori, *c_ori, *Af, *Lv, *Yv, *Rv, *pvStar, *p, *gx, *uv, *vl, *wv, *P, *G; 
 	double *lambdaf, *lambdal, *lambda, *tmpVec1, *tmpVec2;
 	double *tmpMat1, *tmpMat2, *tmpMat3, *tmpMat4, *tmpMat5, *tmpMat6;
-	int32_T *isInWl, *orderPermu, *iter;
+	int32_T *isInWl, *orderPermu, *iter_p;
+    int32_T iter;
+    mwSignedIndex dims[2];
 
 	size_t i;
-
 
 	/* check for proper number of arguments */
     if(nrhs!= 40) {
@@ -53,8 +52,6 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         mexErrMsgIdAndTxt("MyToolbox:arrayProduct:notDouble","Input wf must be type int32.");
     }
 
-
-
 	/* create a pointer to the real data in the input matrix  */
     H = (double*)mxGetPr(prhs[0]);				c = (double*)mxGetPr(prhs[1]);			AA = (double*)mxGetPr(prhs[2]); 
 	lg = (double*)mxGetPr(prhs[3]);				lx = (double*)mxGetPr(prhs[4]);			ux = (double*)mxGetPr(prhs[5]); 
@@ -69,7 +66,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	tmpVec2 = (double*)mxGetPr(prhs[29]);		tmpMat1 = (double*)mxGetPr(prhs[30]);	tmpMat2 = (double*)mxGetPr(prhs[31]);
 	tmpMat3 = (double*)mxGetPr(prhs[32]);		tmpMat4 = (double*)mxGetPr(prhs[33]);	tmpMat5 = (double*)mxGetPr(prhs[34]);
 	tmpMat6 = (double*)mxGetPr(prhs[35]);    
-	nf_p = (int32_T*)mxGetPr(prhs[36]);			ml_p = (int32_T*)mxGetPr(prhs[37]);		iter = (int32_T*)mxGetPr(prhs[38]);
+	nf_p = (int32_T*)mxGetPr(prhs[36]);			ml_p = (int32_T*)mxGetPr(prhs[37]);		iter_p = (int32_T*)mxGetPr(prhs[38]);
 	maxIter_p = (int32_T*)mxGetPr(prhs[39]);
 
 	ndec = mxGetM(prhs[1]);
@@ -77,22 +74,23 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	nbc = mxGetM(prhs[4]);
 	nf = nf_p[0];
 	ml = ml_p[0];
-	maxIter = maxIter_p[0];
+	maxIter = maxIter_p[0];    
 
 	/* create the output matrix */
 	plhs[0] = mxCreateDoubleMatrix(ndec,1,mxREAL);		// Creat a double matrix
-
+    dims[0] = 1;
+    dims[1] = 1;
+    plhs[1] = mxCreateNumericArray(2,dims,mxUINT32_CLASS,mxREAL);
+    
 	/* get a pointer to the real data in the output matrix */
-    xStar = mxGetPr(plhs[0]);
-
+    xStar = mxGetPr(plhs[0]);  
+    iter_p = mxGetPr(plhs[1]);
+      
 	/* call the computational routine */
 	wgsQP(H, c, AA, lx, ux, lg, wf, wl, nf, ml, x, ndec, nbc, ngc,
-
 		orderPermu, H_ori, c_ori, Af, Lv, Yv, Rv,
 		pvStar, p, gx, isInWl,uv,vl,wv,
 		lambdal,lambdaf,lambda, P,G,
 		tmpVec1, tmpVec2, tmpMat1, tmpMat2, tmpMat3, tmpMat4, tmpMat5, tmpMat6,
-		xStar,iter,maxIter);
-
-
+		xStar,iter_p,maxIter);       
 }
