@@ -1,5 +1,5 @@
 ## Ignore some VS temporary files.
 
 # Temp files
-*.obj
+WGS\wgsQP\wgsQP\Debug\*.obj
 *.pdb
