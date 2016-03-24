@@ -1,0 +1,5 @@
+## Ignore some VS temporary files.
+
+# Temp files
+*.obj
+*.pdb
