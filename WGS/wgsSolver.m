@@ -229,7 +229,6 @@ if precisionFlag == 1
     x = single(x);
 end
 
-time = 0;
 tic
 if precisionFlag == 1
     [xStar,iter] = wgsQPMEX(single(H),single(f),single(AA_c),...

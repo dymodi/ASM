@@ -47,10 +47,10 @@ for i = 1:maxIter
         %error('maxIter reached!');
     end
     
-    iterStar = iterStar + 1;
+    iterStar = i-1;
     g = G*x+c;
     
-    % Compute active constraints matrix accoring to w
+    % Compute active constraints matrix according to w
     setSize = length(w);
     Aw = zeros(setSize,ndec);
     bw = zeros(setSize,1);
@@ -67,9 +67,15 @@ for i = 1:maxIter
     
     
     if (isZero(p,1e-4) == 1)
-        %% p=0. Optimal reached or delete a constraint
+       %% p=0. Optimal reached or delete a constraint
+        
+%         % Here we solve the equation with self-made gauss
+%         AwG = gauss([Aw',g]);
+%         lamdaG = linsolve(AwG(:,1:setSize),AwG(:,setSize+1));
+        
         % lambda = (G*x+c)./Aw();
         lambda = linsolve(Aw',g);
+        
         if max(isnan(lambda)) == 1
             % error('Equation solve fails,try resolve.');
             disp('Equation solve fails,try modification.');            

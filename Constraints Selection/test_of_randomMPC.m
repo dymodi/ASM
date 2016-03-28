@@ -19,6 +19,7 @@ solverSwitch.ASM_WS_CS = 0;
 solverSwitch.ASM_DUAL = 0;
 solverSwitch.ASM_DUAL_CS = 0;
 solverSwitch.WGS = 1;
+solverSwitch.ASM_C = 1;
 
 %% Add the father path into the working directroy
 currentDepth = 1; % get the supper path of the current path
@@ -37,30 +38,49 @@ R = 1;
 testSizeIO = 5;
 testSizeMP = 5;
 
-dataMaxIterPrimASM = zeros(testSizeIO,testSizeMP);  % Max Iter of origin ASM
-dataMaxIterPrimASM_CS = zeros(testSizeIO,testSizeMP);  % Max Iter of ASM with constraints seletion
+dataMaxIterPrimASM = zeros(testSizeIO,testSizeMP);  
+dataMaxIterPrimASM_CS = zeros(testSizeIO,testSizeMP);
 dataMaxIterPrimASM_CS_New = zeros(testSizeIO,testSizeMP);
+dataMaxIterDualASM = zeros(testSizeIO,testSizeMP);
+dataMaxIterDualASM_CS = zeros(testSizeIO,testSizeMP);
 dataMaxIterPrimASM_WS = zeros(testSizeIO,testSizeMP);
 dataMaxIterPrimASM_WS_CS_New = zeros(testSizeIO,testSizeMP);
-dataAvgIterPrimASM = zeros(testSizeIO,testSizeMP);  % Average Iter of origin ASM
-dataAvgIterPrimASM_CS = zeros(testSizeIO,testSizeMP);  % Average Iter of ASM with constraints seletion
-dataAvgIterPrimASM_CS_New = zeros(testSizeIO,testSizeMP);  
+dataMaxIterWGS = zeros(testSizeIO,testSizeMP);
+dataMaxIterASM_C = zeros(testSizeIO,testSizeMP);
+
+dataMaxDiffPrimASM = zeros(testSizeIO,testSizeMP);  
+dataMaxDiffWGS = zeros(testSizeIO,testSizeMP);
+dataMaxDiffASM_C = zeros(testSizeIO,testSizeMP);
+
+dataAvgDiffPrimASM = zeros(testSizeIO,testSizeMP);  
+dataAvgDiffWGS = zeros(testSizeIO,testSizeMP);
+dataAvgDiffASM_C = zeros(testSizeIO,testSizeMP);
+
+dataAvgIterPrimASM = zeros(testSizeIO,testSizeMP);
+dataAvgIterPrimASM_CS = zeros(testSizeIO,testSizeMP);
+dataAvgIterPrimASM_CS_New = zeros(testSizeIO,testSizeMP);
+dataAvgIterDualASM = zeros(testSizeIO,testSizeMP);
+dataAvgIterDualASM_CS = zeros(testSizeIO,testSizeMP);
 dataAvgIterPrimASM_WS = zeros(testSizeIO,testSizeMP);
 dataAvgIterPrimASM_WS_CS_New = zeros(testSizeIO,testSizeMP);
-dataMaxIterDualASM = zeros(testSizeIO,testSizeMP);  % Max Iter of origin ASM
-dataMaxIterDualASM_CS = zeros(testSizeIO,testSizeMP);  % Max Iter of ASM with constraints seletion
-dataAvgIterDualASM = zeros(testSizeIO,testSizeMP);  % Average Iter of origin ASM
-dataAvgIterDualASM_CS = zeros(testSizeIO,testSizeMP);  % Average Iter of ASM with constraints seletion
+dataAvgIterWGS = zeros(testSizeIO,testSizeMP);
+dataAvgIterASM_C = zeros(testSizeIO,testSizeMP);
+
 dataUcTimes = zeros(testSizeIO,testSizeMP);     % Unconstrained problems
 dataTightTimes = zeros(testSizeIO,testSizeMP);  % Unsolvable problems
 dataSolveTimes = zeros(testSizeIO,testSizeMP);  % Actual solve times
-dataFailTimesPrimASM = zeros(testSizeIO,testSizeMP);% Fails of origin ASM
-dataFailTimesPrimASM_CS = zeros(testSizeIO,testSizeMP);% Fails of ASM with constraints selection
-dataFailTimesPrimASM_CS_New = zeros(testSizeIO,testSizeMP);% Fails of ASM with constraints selection
-dataFailTimesPrimASM_WS = zeros(testSizeIO,testSizeMP);% Fails of ASM with constraints selection
-dataFailTimesPrimASM_WS_CS_New = zeros(testSizeIO,testSizeMP);% Fails of ASM with constraints selection
-dataFailTimesDualASM = zeros(testSizeIO,testSizeMP);% Fails of origin ASM
-dataFailTimesDualASM_CS = zeros(testSizeIO,testSizeMP);% Fails of ASM with constraints selection
+dataFailTimesPrimASM = zeros(testSizeIO,testSizeMP);
+dataFailTimesPrimASM_CS = zeros(testSizeIO,testSizeMP);
+dataFailTimesPrimASM_CS_New = zeros(testSizeIO,testSizeMP);
+dataFailTimesPrimASM_WS = zeros(testSizeIO,testSizeMP);
+dataFailTimesPrimASM_WS_CS_New = zeros(testSizeIO,testSizeMP);
+dataFailTimesDualASM = zeros(testSizeIO,testSizeMP);
+dataFailTimesDualASM_CS = zeros(testSizeIO,testSizeMP);
+
+dataMaxTimeWGS = zeros(testSizeIO,testSizeMP);
+dataMaxTimeASM_C = zeros(testSizeIO,testSizeMP);
+dataAvgTimeWGS = zeros(testSizeIO,testSizeMP);
+dataAvgTimeASM_C = zeros(testSizeIO,testSizeMP);
 
 for i = 1:testSizeIO
     nu = i+1;     % Number of inputs variables
@@ -81,6 +101,8 @@ for i = 1:testSizeIO
             dataMaxIterPrimASM(i,j) = output.maxIterPrimASM;
             dataAvgIterPrimASM(i,j) = output.avgIterPrimASM;
             dataFailTimesPrimASM(i,j) = output.failTimesPrimASM;
+            dataMaxDiffPrimASM = output.maxDiffPrimASM;
+            dataAvgDiffPrimASM = output.avgDiffPrimASM;
         end
         if solverSwitch.ASM_CS == 1
             dataMaxIterPrimASM_CS(i,j) = output.maxIterPrimASM_CS;
@@ -111,7 +133,23 @@ for i = 1:testSizeIO
             dataMaxIterPrimASM_WS_CS_New(i,j) = output.maxIterPrimASM_WS_CS_New;
             dataAvgIterPrimASM_WS_CS_New(i,j) = output.avgIterPrimASM_WS_CS_New;
             dataFailTimesPrimASM_WS_CS_New(i,j) = output.failTimesPrimASM_WS_CS_New;
-        end        
+        end
+        if solverSwitch.WGS == 1
+            dataMaxIterWGS(i,j) = output.maxIterWGS;
+            dataAvgIterWGS(i,j) = output.avgIterWGS;
+            dataMaxTimeWGS(i,j) = output.maxTimeWGS;
+            dataAvgTimeWGS(i,j) = output.avgTimeWGS;
+            dataMaxDiffWGS = output.maxDiffWGS;
+            dataAvgDiffWGS = output.avgDiffWGS;
+        end
+        if solverSwitch.ASM_C == 1
+            dataMaxIterASM_C(i,j) = output.maxIterASM_C;
+            dataAvgIterASM_C(i,j) = output.avgIterASM_C;
+            dataMaxTimeASM_C(i,j) = output.maxTimeASM_C;
+            dataAvgTimeASM_C(i,j) = output.avgTimeASM_C;
+            dataMaxDiffASM_C = output.maxDiffASM_C;
+            dataAvgDiffASM_C = output.avgDiffASM_C;
+        end
     end
 end
 

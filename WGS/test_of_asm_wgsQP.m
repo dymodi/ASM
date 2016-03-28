@@ -4,6 +4,13 @@
 % Yi
 
 clc;clear;
+%% Add the father path into the working directroy
+currentDepth = 1; % get the supper path of the current path
+currPath = fileparts(mfilename('fullpath')); % get current path
+pos_v = strfind(currPath,filesep);
+father_p = currPath(1:pos_v(length(pos_v)-currentDepth+1)-1);
+% -1: delete the last character '/' or '\'
+addpath(father_p);
 
 % % ²âÀý1
 % H = [ 4.5267, -3.9095,  0.6937, -7.1302,  1.2138, -0.9079;
@@ -50,8 +57,8 @@ invH = inv(H);
 
 A = [eye(4,4);-eye(4,4);AA];
 b = [lub;lg];
-x = [2;0;-4;-3];
 w = [3,9,10];
+x = [2;0;-4;-3];
 maxIter = 50;
 
 % % ²âÀý3
@@ -113,24 +120,28 @@ maxIter = 50;
 % b = lg;
 % %x = x0;
 
-model.Q = sparse(0.5*H);
-model.A = sparse(AA);
-model.obj = c;
-model.rhs = lg;
-model.sense = '>';
-model.lb = lx;
-model.ub = ux;
+% model.Q = sparse(0.5*H);
+% model.A = sparse(AA);
+% model.obj = c;
+% model.rhs = lg;
+% model.sense = '>';
+% model.lb = lx;
+% model.ub = ux;
+% %gurobi_write(model, 'qp.lp');
+% results = gurobi(model);
+% x_gb = results.x;
 
-%gurobi_write(model, 'qp.lp');
-results = gurobi(model);
-x_gb = results.x;
+%ans = gauss(H);
 
 opts = optimoptions('quadprog','Algorithm','active-set');
 x_quad = quadprog(H,c,-A,-b,[],[],[],[],[],opts);
 
-%[x_asm, ~, iterStar, ~] = asm(H,invH,c,A,b,x,[],100);
+[x_asm_C, time_asm_C, iter_asm_C] = asmSolver(H, c, A, b, x, w, 2);
+
+[x_asm, ~, iterStar, ~] = asm(H,invH,c,A,b,x,w,100);
 
 x_wgs = wgsQP(H,c,AA,lx,ux,lg,[],[],0,0,x);
+
 
 
 %diff_asm_quad = max(abs(x_asm-x_quad));

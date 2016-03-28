@@ -35,7 +35,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         mexErrMsgIdAndTxt("MyToolbox:arrayProduct:nrhs","40 inputs required.");
     }
 
-	/* make sure the first input argument is type single */
+	/* make sure the first input argument is type double */
 	for (i = 0; i < 6; i++)
     if( !mxIsDouble(prhs[i]) || 
          mxIsComplex(prhs[i])) {

@@ -129,12 +129,14 @@ y_draw = zeros(Nsim,ny);    x_draw = zeros(n,Nsim);
 u_draw = zeros(Nsim,nu);
 invG = inv(G);
 diff_ASM_QUAD = [];         diff_ASMDUAL_QUAD = [];
-diff_ASMDUAL_QUAD_CS = [];
+diff_ASMDUAL_QUAD_CS = [];  diff_WGS_QUAD = [];
+diff_ASM_C_QUAD = [];
 iter_ASM = [];              iter_ASM_cs = [];
 iter_ASM_cs_new = [];       iter_ASM_ws = [];
 iter_ASM_ws_cs_new = [];    iter_ASM_dual = [];
 iter_ASM_dual_cs = [];      iter_WGS = [];
 time_QUAD = [];             time_WGS = [];
+iter_ASM_C = [];            time_ASM_C = [];
 data_max_delta_u = [];
 finalAS = [];
 lpW = [];
@@ -243,7 +245,9 @@ for kk = 1:Nsim;
         [delta_u_M_out_asm,~,iterASM,finalAS,failFlag] = asm(G,...
             invG,c,-OMEGA_L,-omega_r,x_ini,[],maxIter);
         iter_ASM = [iter_ASM;iterASM];
-        if failFlag == 1 || norm(delta_u_M_out_asm-delta_u_M_out) > 1e-3
+        diff = norm(delta_u_M_out_asm-delta_u_M_out);
+        diff_ASM_QUAD = [diff_ASM_QUAD;diff];
+        if failFlag == 1 || diff > 1e-3
             failTimesPrimASM = failTimesPrimASM + 1;
             disp('ASM failes!');
         end
@@ -259,7 +263,6 @@ for kk = 1:Nsim;
             failTimesPrimASM_CS = failTimesPrimASM_CS + 1;
             disp('ASM_cs fails.');
         end
-        diff_ASM_QUAD = [diff_ASM_QUAD;diff];
     end
     
     if solverSwitch.ASM_CS_NEW == 1
@@ -387,10 +390,23 @@ for kk = 1:Nsim;
         time_WGS = [time_WGS;time];
         iter_WGS = [iter_WGS;iter];
         diff = norm(delta_u_M_out_wgs-delta_u_M_out);
+        diff_WGS_QUAD = [diff_WGS_QUAD;diff];
         if diff > 1e-3
             error('WGS fails.');
         end
     end        
+    
+    if solverSwitch.ASM_C == 1
+        [delta_u_M_out_asm_c, time, iter] = asmSolver(G, c, -OMEGA_L,...
+            -omega_r, x_ini, [], 2);
+        time_ASM_C = [time_ASM_C;time];
+        iter_ASM_C = [iter_ASM_C;iter];
+        diff = norm(delta_u_M_out_asm_c-delta_u_M_out);
+        diff_ASM_C_QUAD = [diff_ASM_C_QUAD;diff];
+        if diff > 1e-3
+            error('ASM_C fails.');
+        end
+    end
     
     % The followings are used to do simulations
     delta_u = delta_u_M_out(1:nu,1);
@@ -411,17 +427,23 @@ end
 output.maxIterPrimASM = max(iter_ASM(2:length(iter_ASM)));
 output.maxIterPrimASM_CS = max(iter_ASM_cs(2:length(iter_ASM_cs)));
 output.maxIterPrimASM_CS_New = max(iter_ASM_cs_new(2:length(iter_ASM_cs_new)));
+output.maxIterDualASM = max(iter_ASM_dual);
+output.maxIterDualASM_CS = max(iter_ASM_dual_cs);
 output.maxIterPrimASM_WS = max(iter_ASM_ws(2:length(iter_ASM_ws)));
 output.maxIterPrimASM_WS_CS_New = max(iter_ASM_ws_cs_new(2:length(iter_ASM_ws_cs_new)));
+output.maxIterWGS = max(iter_WGS(2:length(iter_WGS)));
+output.maxIterASM_C = max(iter_ASM_C(2:length(iter_ASM_C)));
+
 output.avgIterPrimASM = mean(iter_ASM(2:length(iter_ASM)));
 output.avgIterPrimASM_CS = mean(iter_ASM_cs(2:length(iter_ASM_cs)));
 output.avgIterPrimASM_CS_New = mean(iter_ASM_cs_new(2:length(iter_ASM_cs_new)));
-output.avgIterPrimASM_WS = mean(iter_ASM_ws(2:length(iter_ASM_ws)));
-output.avgIterPrimASM_WS_CS_New = mean(iter_ASM_ws_cs_new(2:length(iter_ASM_ws_cs_new)));
-output.maxIterDualASM = max(iter_ASM_dual);
-output.maxIterDualASM_CS = max(iter_ASM_dual_cs);
 output.avgIterDualASM = mean(iter_ASM_dual);
 output.avgIterDualASM_CS = mean(iter_ASM_dual_cs);
+output.avgIterPrimASM_WS = mean(iter_ASM_ws(2:length(iter_ASM_ws)));
+output.avgIterPrimASM_WS_CS_New = mean(iter_ASM_ws_cs_new(2:length(iter_ASM_ws_cs_new)));
+output.avgIterWGS = mean(iter_WGS(2:length(iter_WGS)));
+output.avgIterASM_C = mean(iter_ASM_C(2:length(iter_ASM_C)));
+
 output.ucTimes = ucTimes;
 output.tightTimes = tightTimes;
 output.failTimesPrimASM = failTimesPrimASM;
@@ -431,6 +453,19 @@ output.failTimesPrimASM_WS = failTimesPrimASM_WS;
 output.failTimesPrimASM_WS_CS_New = failTimesPrimASM_WS_CS_New;
 output.failTimesDualASM = failTimesDualASM;
 output.failTimesDualASM_CS = failTimesDualASM_CS;
+
+output.maxTimeWGS = max(time_WGS(2:length(time_WGS)));
+output.maxTimeASM_C = max(time_ASM_C(2:length(time_ASM_C)));
+output.avgTimeWGS = mean(time_WGS(2:length(time_WGS)));
+output.avgTimeASM_C = mean(time_ASM_C(2:length(time_ASM_C)));
+
+output.maxDiffPrimASM = max(diff_ASM_QUAD(2:length(diff_ASM_QUAD)));
+output.maxDiffWGS = max(diff_WGS_QUAD(2:length(diff_WGS_QUAD)));
+output.maxDiffASM_C = max(diff_ASM_C_QUAD(2:length(diff_ASM_C_QUAD)));
+
+output.avgDiffPrimASM = mean(diff_ASM_QUAD(2:length(diff_ASM_QUAD)));
+output.avgDiffWGS = mean(diff_WGS_QUAD(2:length(diff_WGS_QUAD)));
+output.avgDiffASM_C = mean(diff_ASM_C_QUAD(2:length(diff_ASM_C_QUAD)));
 
 % Drawing
 figure;

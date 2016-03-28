@@ -1,5 +1,6 @@
 # Ignore some files
 
+# Files made by VS
 *.obj
 *.exe
 *.ilk
@@ -12,3 +13,12 @@
 *.log
 *.lastbuildstate
 *.cache
+*.opensdf
+*.vcxproj
+*.filters
+
+# Build results
+WGS/wgsQP/wgsQP/Debug/
+
+# Files made by MATLAB
+*.asv

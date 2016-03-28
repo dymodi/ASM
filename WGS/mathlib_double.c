@@ -9,8 +9,8 @@
  *
  */
 
-#define Print mexPrintf		// For Matlab debug
-//#define Print printf		// For Visual Studio debug
+//#define Print mexPrintf		// For Matlab debug
+#define Print printf		// For Visual Studio debug
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +47,18 @@ double vec_min(double *x, int n) {
 			min = x[i];
 	}
 	return min;
+}
+
+// Find the maximum one of a vector.
+double vec_max(double *x, int n) {
+	double max;
+	int i;
+	max = x[0];
+	for(i=1;i<n;i++) {
+		if(x[i]>max)
+			max = x[i];
+	}
+	return max;
 }
 
 // Return the index of the minimum element
@@ -106,8 +118,9 @@ void mat_vec(double *A, double *x, int row, int col, double *b) {
 	int i,j;
 	for(i=0;i<row;i++) {
 		b[i]=0;
-		for(j=0;j<col;j++)
+		for(j=0;j<col;j++) {
 			b[i] += A[i*col+j]*x[j];				//Attention!2014.5.5
+		}
 	}
 }
 
@@ -314,10 +327,8 @@ void luEvaluate(double *L,double *U, double*b,int n,double *x,double *y) {
 
 	//Foward solve Ly = b;
 	y[0] = b[0]/L[0];
-	for(i=1;i<n;i++)
-	{
-		for(j=0;j<i;j++)
-		{
+	for(i=1;i<n;i++) {
+		for(j=0;j<i;j++) {
 			temp += L[i*n+j]*y[j];
 		}
 		y[i] = b[i] - temp;
@@ -329,10 +340,8 @@ void luEvaluate(double *L,double *U, double*b,int n,double *x,double *y) {
 	//Backward solve Ux = y
 	x[n-1] = y[n-1]/U[n*n-1];
 	temp = 0;
-	for(i=n-2;i>=0;i--)
-	{
-		for(j=i+1;j<n;j++)
-		{
+	for(i=n-2;i>=0;i--) {
+		for(j=i+1;j<n;j++) {
 			temp += U[i*n+j]*x[j];
 		}
 		x[i] = y[i] - temp;
@@ -637,6 +646,53 @@ void gs_m(double *A, int m, int n, double *Q, double *R) {
 		}
 	}
 }
+
+// Gauss elimination for solving linear equations
+// Algorithms according to Wikipedia
+// Mar 25th, 2016
+int gauss(double *A, int row, int col, double *tmpVec) {
+	int k, i,j, iter, i_max;
+	double row_max, m;
+
+	if (row > col)
+		iter = col;
+	else
+		iter = row;
+	for (k = 0; k < iter; k++) {
+		row_max = A[k*col+k];
+		if (row_max < 0)
+			row_max = -row_max;
+		i_max = k;
+		for (i = k+1; i < row; i++) {
+			if(A[i*col+k] > row_max) {
+				row_max = A[i*col+k];
+				i_max = i;
+			}
+			else if(-A[i*col+k] > row_max) {
+				row_max = -A[i*col+k];
+				i_max = i;
+			}
+		}
+		//printf("k:%d, i_max:%d, row_max:%f\n",k,i_max,row_max);
+		if (row_max == 0) {
+			Print("Matrix is singular!");
+			return -1;
+		}
+		for (i = 0; i < col; i++)
+			tmpVec[i] = A[k*col+i];
+		for (i = 0; i < col; i++)
+			A[k*col+i] = A[i_max*col+i];
+		for (i = 0; i < col; i++)
+			A[i_max*col+i] = tmpVec[i];
+		for (i = k+1; i < row; i++) {
+			m = A[i*col+k]/A[k*col+k];
+			for (j = k+1; j < col; j++)
+				A[i*col+j] = A[i*col+j] - A[k*col+j]*m;
+			A[i*col+k] = 0;
+		}
+	}
+}
+
 
 /*  The main routine */
 int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, double *lg, 
@@ -1673,26 +1729,250 @@ int wgsQP(double *H_ori, double *c_ori, double *AA, double *lx, double *ux, doub
 	return flag;
 }
 
-///* Primal ASM solver in C code */
-///* Details can be found in the MATLAB implementation of ASM */
-///* Mar. 22th, 2016 */
-///* Yi Ding */
-//int asm(double *H_ori, double *invH_ori, double *c_ori, double *AA, double *lg, 
-//	double *x, int ndec, int ml, 
-//	double *H, double *invH, double *c, double *p, double *gx, 
-//	double *lambda, double *tmpVec1, double *tmpVec2, 
-//	double *tmpMat1, double *tmpMat2, double *tmpMat3, 
-//	double *tmpMat4, double *tmpMat5, double *tmpMat6,
-//	double *xStar, int *iterPoint, int maxIter) {
-//
-//	Print("x is: %d\n");
-//	show_matrix(x,1,ndec);
-//
-//	for (i = 0; i < ndec*ndec; i++)
-//		H[i] = H_ori[i];
-//	for (i = 0; i < ndec*ndec; i++)
-//		invH[i] = invH_ori[i];
-//	for (i = 0; i < ndec; i++)
-//		c[i] = c_ori[i];
-//
-//}
+ /* Primal ASM solver in C code */
+ /* Details can be found in the MATLAB implementation of ASM */
+ /* Mar. 22th, 2016 */
+ /* Yi Ding */
+// Note, cons in the working set is from 0 ~ wSize-1, not 1 ~ wSize
+int ASM (double *H_ori, double *invH_ori, double *c_ori, double *A, double *b, 
+	double *x, int ndec, int mc, int *w, int wSize,
+	double *Aw, double *bw,
+	double *H, double *invH, double *c, double *p, double *gx, 
+	double *lambda, double *tmpVec1, double *tmpVec2, 
+	double *tmpMat1, double *tmpMat2, double *tmpMat3, double *tmpMat4, 
+	double *xStar, int *iterPoint, int maxIter) {
+
+
+	int i,j,failFlag,iter,minLambdaIndex,wInd,indexMin;
+	int hasFirst = 0;
+	double tmp, minLambda, ap, minAlpha, tmpAlpha, alpha;
+
+	//Print("x is:\n"); show_matrix(x,1,ndec); Print("\n");
+	//Print("ndec: %d\n",ndec); Print("mc: %d\n",mc); 
+	//Print("A is:\n"); show_matrix(A,ndec,mc); Print("\n");
+	//Print("b is:\n"); show_matrix(b,mc,1); Print("\n");
+	//Print("wSize:%d\n",wSize);
+	//Print("w is:\n"); show_matrixInt(w,wSize,1); Print("\n");
+
+	// Pre-process of working set
+	for (i = 0; i < wSize; i++)
+		w[i] = w[i] - 1;
+
+	for (i = 0; i < ndec*ndec; i++)
+		H[i] = H_ori[i];
+	for (i = 0; i < ndec*ndec; i++)
+		invH[i] = invH_ori[i];
+	for (i = 0; i < ndec; i++)
+		c[i] = c_ori[i];
+
+	// Give Warrings if the initial point is infeasible!
+	mat_vec(A,x,mc,ndec,tmpVec1);
+	vec_sub(tmpVec1,b,mc,tmpVec2);
+	tmp = vec_min(tmpVec2, mc);
+	if (tmp < -0.001) {
+		Print("Infeasible initial point!\n");
+		return 1;
+	}
+		
+	// Give Errors if initial working set not compatible
+	if (wSize != 0) {
+		for (i = 0; i < wSize; i++) {
+			for (j = 0; j < ndec; j++) {
+				Aw[i*ndec+j] = A[(w[i])*ndec+j];				
+			}
+			bw[i] = b[w[i]];
+		}
+		mat_vec(Aw,x,wSize,ndec,tmpVec1);
+		vec_sub(tmpVec1,bw,wSize,tmpVec2);
+		for (i = 0; i < wSize; i++) {
+			if (tmpVec2[i] < 0.0)
+				tmpVec2[i] = -tmpVec2[i];
+		}
+		tmp = vec_max(tmpVec2,wSize);
+		if (tmp > 0.001) {
+			Print("Wrong initial working set!\n");
+			return 1;
+		}
+	}
+
+	for (iter=0; iter < maxIter; iter++) {
+		if (iter == (maxIter)) {
+			Print("maxIter reached!\n");
+			wSize = 0;
+			iterPoint[0] = maxIter;
+			return 1;
+		}
+
+		// Check whether w is order
+		for (i = 0; i < wSize-1; i++) {
+			if (w[i] > w[i+1]) {
+				Print("Error! Working set not order!");
+				return 1;
+			}
+		}
+
+		mat_vec(H,x,ndec,ndec,tmpVec1);
+		vec_add(tmpVec1,c,ndec,gx);
+		//Print("gx is:\n"); show_matrix(gx,ndec,1); Print("\n");
+
+		//Compute active constraints matrix according to w
+		for (i = 0; i < wSize; i++) {
+			for (j = 0; j < ndec; j++) {
+				Aw[i*ndec+j] = A[(w[i])*ndec+j];				
+			}
+			bw[i] = 0;
+		}
+		//Print("Aw is:\n"); show_matrix(Aw,ndec,wSize); Print("\n");
+		//Print("bw is:\n"); show_matrix(bw,wSize,1); Print("\n");
+
+		// Solve equality constrained problem
+		if (wSize == ndec) {
+			for (i=0; i<ndec; i++)
+				p[i] = 0;
+		}
+		else {
+			// We unpack eqp.m here
+			if (wSize == 0) {
+				mat_vec(invH,gx,ndec,ndec,tmpVec1);
+				//Print("invH(empty w):\n");show_matrix(invH,ndec,ndec);Print("\n");
+				//Print("gx(empty w):\n");show_matrix(gx,ndec,1);Print("\n");
+				for (i=0; i<ndec; i++)
+					p[i] = -tmpVec1[i];
+			}
+			else {
+				// Note in eqp() in asm(), x is always zeros
+				//Print("Aw is:\n"); show_matrix(Aw,ndec,wSize); Print("\n");
+				mat_vec(invH,gx,ndec,ndec,tmpVec1);							// tmpVec1 = invG*g;
+				mat_vec(Aw,tmpVec1,wSize,ndec,tmpVec2);						// tmpVec2 = A*invG*g;
+				vec_add(tmpVec2,bw,wSize,tmpVec1);							// tmpVec1 = equation_b;
+				//Print("equation_b':\n");show_matrix(tmpVec1,wSize,1); Print("\n");
+				mat_mul(Aw,wSize,ndec,invH,ndec,tmpMat1);					// tmpMat1 = A*invH;
+				mat_mulTrans(tmpMat1,wSize,ndec,Aw,wSize,tmpMat2);			// tmpMat2 = A*invG*A';
+				//Print("A*invG*A':\n");show_matrix(tmpMat2,wSize,wSize); Print("\n");
+				cholesky(tmpMat2,wSize,tmpMat1);							// tmpMat1 = L;			
+				for (i=0;i<wSize*wSize;i++)
+					tmpMat3[i] = tmpMat1[i];
+				transpose(tmpMat3,wSize,wSize);								// tmpMat3 = U;
+				luEvaluate(tmpMat1,tmpMat3,tmpVec1,wSize,tmpVec2,tmpMat4);	// tmpVec2 = lambda;
+				//Print("lambda(inside eqp()) is:\n"); show_matrix(tmpVec2,wSize,1); Print("\n");
+				matTrans_vec(Aw,tmpVec2,wSize,ndec,tmpVec1);				// tmpVec1 = A'*lambda;
+				vec_sub(tmpVec1,gx,ndec,tmpVec2);							// tmpVec2 = A'*lambda - g;
+				mat_vec(invH,tmpVec2,ndec,ndec,p);				
+			}
+		}
+		//Print("p is:\n"); show_matrix(p,ndec,1); Print("\n");
+
+		if (isZero(p, ndec, 0.0001)==1) {
+			// p=0. Optimal reached or delete a constraint
+			for (i = 0; i < ndec; i++) {
+				for (j = 0; j < wSize; j++) 
+					tmpMat1[i*(wSize+1)+j] = Aw[j*ndec+i];
+				tmpMat1[i*(wSize+1)+wSize] = gx[i];
+			}
+			//Print("AwG:\n");show_matrix(tmpMat1,wSize+1,ndec);Print("\n");
+			gauss(tmpMat1,ndec,wSize+1,tmpVec1);			
+			//Print("AwG(after gauss):\n");show_matrix(tmpMat1,wSize+1,ndec);Print("\n");
+
+			for (i = 0; i < wSize; i++) {
+				for (j = 0; j < wSize; j++)
+					tmpMat2[i*wSize+j] = tmpMat1[i*(wSize+1)+j];
+				tmpVec1[i] = tmpMat1[i*(wSize+1)+wSize];
+			}
+			//Print("Upper triangle mat:\n");show_matrix(tmpMat2,wSize,wSize);Print("\n");
+			//Print("Right vector:\n");show_matrix(tmpVec1,wSize,1);Print("\n");
+			BacSubU(tmpMat2, tmpVec1, wSize, lambda, 0);
+			//Print("lambda:\n");show_matrix(lambda,wSize,1);Print("\n");
+
+			minLambda = lambda[0];
+			minLambdaIndex = 0;
+			for (i = 1; i < wSize; i++) {
+				if (lambda[i] < minLambda) {
+					minLambda = lambda[i];
+					minLambdaIndex = i;
+				}
+			}
+			//Print("minLambda is:%f\n",minLambda);
+			if(wSize ==0 || minLambda > 0.0) {
+				// Successful soluation
+				for (i = 0; i < ndec; i++)
+					xStar[i] = x[i];
+				iterPoint[0] = iter;
+				return 0;
+			}
+			else {
+				// Delete a constraint from working set
+				for (i = minLambdaIndex; i < wSize-1; i++)
+					w[i] = w[i+1];
+				w[wSize-1] = 0;
+				wSize--;
+				//Print("Working set(after deletion):\n"); 
+				//show_matrixInt(w,wSize,1); Print("\n");
+			}
+		}
+		else {
+			// p != 0;		
+			// In order to save time and  space, we do not form a whole AnotW
+			wInd = 0;	// Here working set must be ordered!
+			hasFirst = 0;
+			for (i = 0; i < mc; i++) {
+				if (wInd < wSize && w[wInd] == i)
+					wInd++;
+				else {
+					for (j = 0; j < ndec; j++)
+						tmpVec1[j] = A[i*ndec+j];		// tmpVec1 = AnotW(j,:)
+					tmp = b[i];
+					//Print("AnotW(%d,:):\n",i);show_matrix(tmpVec1,ndec,1);Print("\n");
+					//Print("bnotW(%d):%f\n",i,tmp);
+					ap = dot_product(tmpVec1,p,ndec);
+					//Print("ap:%f\n",ap);
+					if (ap < 0) {
+						if (hasFirst == 0) {
+							minAlpha = (tmp-dot_product(tmpVec1,x,ndec))/ap;
+							indexMin = i;
+							hasFirst = 1;
+							//Print("minAlpha:%f(first)\n",minAlpha);
+						}
+						else {
+							tmpAlpha = (tmp-dot_product(tmpVec1,x,ndec))/ap;
+							if (tmpAlpha < minAlpha) {
+								minAlpha = tmpAlpha;
+								indexMin = i;
+							}
+							//Print("minAlpha:%f,tmpAlpha:%f\n",minAlpha,tmpAlpha);
+						}
+						
+					}
+				}
+			}
+			alpha = minAlpha;
+			if (alpha > 1)
+				alpha = 1;
+			//Print("alpha:%f\n",alpha);
+			for (i = 0; i < ndec; i++)
+				x[i] = x[i] + alpha * p[i];
+			//Print("x:\n",i);show_matrix(x,ndec,1);Print("\n");
+			if (alpha < 1) {
+				// Add blocking constraint to working set
+				if (wSize == 0) {
+					w[0] = indexMin;
+					wSize++;
+				}
+				else{
+					for (i = 0; i < wSize; i++) {
+						if (w[i] > indexMin) {
+							for (j = wSize; j > i; j--)
+								w[j] = w[j-1];
+							w[i] = indexMin;							
+							break;
+						}
+					}
+					if (i == wSize)
+						w[wSize] = indexMin;
+					wSize++;
+				}
+				//Print("Working set(after adding):\n"); 
+				//show_matrixInt(w,wSize,1); Print("\n");
+			}			
+		}
+	} // End out for
+}
