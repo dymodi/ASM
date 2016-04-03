@@ -11,6 +11,7 @@ pos_v = strfind(currPath,filesep);
 father_p = currPath(1:pos_v(length(pos_v)-currentDepth+1)-1);
 % -1: delete the last character '/' or '\'
 addpath(father_p);
+addpath('C:\gurobi605\win64\matlab');
 
 % % 测例1
 % H = [ 4.5267, -3.9095,  0.6937, -7.1302,  1.2138, -0.9079;
@@ -142,10 +143,17 @@ x_quad = quadprog(H,c,-A,-b,[],[],[],[],[],opts);
 
 x_wgs = wgsQP(H,c,AA,lx,ux,lg,[],[],0,0,x);
 
-
+%串口设置：
+s=serial('COM4');           %创建串口对象s，串口端号COM
+set(s,'BaudRate',115200);   %设定串口s的波特率
+set(s,'Timeout',10);        %设定串口s失效时间
+fopen(s);                   %打开串口s
+[x_dsp,time_dsp,iter_dsp] = dspSolver(H,c,A,b,x,w,1,1,s);
+[x_dsp2,time_dsp2,iter_dsp2] = dspSolver(H,c,A,b,x,w,2,1,s);
+fclose(s);                   %打开串口s
 
 %diff_asm_quad = max(abs(x_asm-x_quad));
 diff_wgs_quad = max(abs(x_wgs-x_quad));
 
 
-0.5*x_wgs'*H*x_wgs + c'*x_wgs
+%0.5*x_wgs'*H*x_wgs + c'*x_wgs

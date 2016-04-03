@@ -28,7 +28,7 @@ if isempty(AA)
     lg = -1;    
 end
 
-maxIter = int32(100);
+maxIter = int32(200);
 [ngc,ndec] = size(AA);
 if length(lx_out)~=length(ux_out)
         error('lx and ux must have the same size.');

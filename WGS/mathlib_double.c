@@ -1748,7 +1748,7 @@ int ASM (double *H_ori, double *invH_ori, double *c_ori, double *A, double *b,
 	double tmp, minLambda, ap, minAlpha, tmpAlpha, alpha;
 
 	//Print("x is:\n"); show_matrix(x,1,ndec); Print("\n");
-	//Print("ndec: %d\n",ndec); Print("mc: %d\n",mc); 
+	//Print("ndec: %d\n",ndec); Print("mc: %d\n",mc);
 	//Print("A is:\n"); show_matrix(A,ndec,mc); Print("\n");
 	//Print("b is:\n"); show_matrix(b,mc,1); Print("\n");
 	//Print("wSize:%d\n",wSize);

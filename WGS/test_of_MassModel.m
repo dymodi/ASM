@@ -30,6 +30,7 @@ pos_v = strfind(currPath,filesep);
 father_p = currPath(1:pos_v(length(pos_v)-currentDepth+1)-1);
 % -1: delete the last character '/' or '\'
 addpath(father_p);
+addpath('C:\gurobi605\win64\matlab');
 
 %% Simulation parameter
 SimLength = 100;        % Simultion length

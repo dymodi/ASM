@@ -6,22 +6,33 @@
 
 function [z, time, iter] = asmSolver(H, c, A, b, x0, w, precisionFlag)
 
-maxIter = int32(100);
+maxIter = int32(200);
 [mc,ndec] = size(A);
 invH = inv(H);
 wSize = length(w);
-x = zeros(ndec,1);
-for i = 1:ndec
-    x(i) = x0(i);
+
+if ~isempty(x0)
+    x = zeros(ndec,1);
+    for i = 1:ndec
+        x(i) = x0(i);
+    end
+end
+% % At current stage, we require that a feasible starting point x0
+% if isempty(x)
+%     error('Empty starting point. Feasible starting point require.');
+% end
+% if min(A*x-b) < 0
+%     error('Infeasible starting point. Feasible starting point require.');
+% end
+
+if isempty(x0)
+    opt.Display='off';
+    x = linprog(zeros(ndec,1),-A,-b,[],[],[],[],[],opt);
+    if min(A*x-b) < -1e-5
+        error('Correction failed, Please offer a feasible starting point!');
+    end
 end
 
-% At current stage, we require that a feasible starting point x0
-if isempty(x)
-    error('Empty starting point. Feasible starting point require.');
-end
-if min(A*x-b) < 0
-    error('Infeasible starting point. Feasible starting point require.');
-end
 
 % Check initial working set
 if ~isempty(w)

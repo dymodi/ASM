@@ -4,8 +4,10 @@
 
 function output = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R,solverSwitch)
 
-global LP1Failtimes LP1NotFailtimes xDelta
-maxIter = 300;
+global LP1Failtimes LP1NotFailtimes xDelta serialPort
+maxIter = 200;
+
+hasTransed = 0;
 
 %% Generate Random Model
 csys = rss(nx,ny,nu);
@@ -49,8 +51,8 @@ end
 % Constraints with u and y
 OMEGA_L = [B;-B;Phi;-Phi];
 % Constraints specifications
-Umax = 3.0;
-Umin = -3.0;
+Umax = 1.9;
+Umin = -1.9;
 delta_U_p_ = 0.5*ones(nu,1);
 delta_U_n_ = -0.5*ones(nu,1);
 U_p_ = Umax*ones(nu,1);
@@ -63,13 +65,13 @@ for i = 1: ny
     end
 end
 if max(max(isnan(Yinfo))) == 1      % The process is unstabel
-    Ymax = 10;
-    Ymin = -10;
+    Ymax = 8;
+    Ymin = -8;
 else
     Ymax = max(max(Yinfo));
     Ymin = min(min(Yinfo));
 end
-yCoef = 1;
+yCoef = 0.9;
 if Ymax > 0
     Y_p_ = Ymax*yCoef*ones(ny,1);
 else
@@ -131,12 +133,15 @@ invG = inv(G);
 diff_ASM_QUAD = [];         diff_ASMDUAL_QUAD = [];
 diff_ASMDUAL_QUAD_CS = [];  diff_WGS_QUAD = [];
 diff_ASM_C_QUAD = [];
+diff_DSPASM_QUAD = [];      diff_DSPWGS_QUAD = [];
 iter_ASM = [];              iter_ASM_cs = [];
 iter_ASM_cs_new = [];       iter_ASM_ws = [];
 iter_ASM_ws_cs_new = [];    iter_ASM_dual = [];
 iter_ASM_dual_cs = [];      iter_WGS = [];
+iter_DSPASM = [];           iter_DSPWGS = [];
 time_QUAD = [];             time_WGS = [];
 iter_ASM_C = [];            time_ASM_C = [];
+time_DSPASM = [];           time_DSPWGS = [];
 data_max_delta_u = [];
 finalAS = [];
 lpW = [];
@@ -145,7 +150,8 @@ tightTimes = 0;     % Record the cases that no feasible solution existed
 failTimesPrimASM = 0;           failTimesPrimASM_CS = 0;
 failTimesPrimASM_WS = 0;        failTimesPrimASM_CS_New = 0;
 failTimesPrimASM_WS_CS_New = 0; failTimesDualASM = 0;
-failTimesDualASM_CS = 0;
+failTimesDualASM_CS = 0;        failTimesWGS = 0;
+failTimesASM_C = 0;
 
 % Here we set a fixed reference
 rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
@@ -392,7 +398,8 @@ for kk = 1:Nsim;
         diff = norm(delta_u_M_out_wgs-delta_u_M_out);
         diff_WGS_QUAD = [diff_WGS_QUAD;diff];
         if diff > 1e-3
-            error('WGS fails.');
+            failTimesWGS = failTimesWGS + 1;
+            disp('WGS fails.');
         end
     end        
     
@@ -404,7 +411,40 @@ for kk = 1:Nsim;
         diff = norm(delta_u_M_out_asm_c-delta_u_M_out);
         diff_ASM_C_QUAD = [diff_ASM_C_QUAD;diff];
         if diff > 1e-3
-            error('ASM_C fails.');
+            failTimesASM_C = failTimesASM_C + 1;
+            disp('ASM_C fails.');
+        end
+    end
+    
+    if solverSwitch.DSPASM == 1
+        if hasTransed == 0
+            [delta_u_M_out_dsp_asm,time,iter] = dspSolver(G,c,-OMEGA_L,-omega_r,x_ini,[],1,1,serialPort);
+        hasTransed = 1;
+        else
+            [delta_u_M_out_dsp_asm,time,iter] = dspSolver(G,c,-OMEGA_L,-omega_r,x_ini,[],1,0,serialPort);
+        end
+        time_DSPASM = [time_DSPASM;time];
+        iter_DSPASM = [iter_DSPASM;iter];
+        diff = norm(delta_u_M_out_dsp_asm-delta_u_M_out);
+        diff_DSPASM_QUAD = [diff_DSPASM_QUAD;diff];
+        if diff > 1e-3
+            disp('DSP ASM fails.');
+        end
+    end
+    
+    if solverSwitch.DSPWGS == 1
+        if hasTransed == 0
+            [delta_u_M_out_dsp_wgs,time,iter] = dspSolver(G,c,-OMEGA_L,-omega_r,x_ini,[],2,1,serialPort);
+            hasTransed = 1;
+        else
+            [delta_u_M_out_dsp_wgs,time,iter] = dspSolver(G,c,-OMEGA_L,-omega_r,x_ini,[],2,0,serialPort);
+        end
+        time_DSPWGS = [time_DSPWGS;time];
+        iter_DSPWGS = [iter_DSPWGS;iter];
+        diff = norm(delta_u_M_out_dsp_wgs-delta_u_M_out);
+        diff_DSPWGS_QUAD = [diff_DSPWGS_QUAD;diff];
+        if diff > 1e-3
+            disp('DSP WGS fails.');
         end
     end
     
@@ -433,6 +473,8 @@ output.maxIterPrimASM_WS = max(iter_ASM_ws(2:length(iter_ASM_ws)));
 output.maxIterPrimASM_WS_CS_New = max(iter_ASM_ws_cs_new(2:length(iter_ASM_ws_cs_new)));
 output.maxIterWGS = max(iter_WGS(2:length(iter_WGS)));
 output.maxIterASM_C = max(iter_ASM_C(2:length(iter_ASM_C)));
+output.maxIterDSPASM = max(iter_DSPASM(2:length(iter_DSPASM)));
+output.maxIterDSPWGS = max(iter_DSPWGS(2:length(iter_DSPWGS)));
 
 output.avgIterPrimASM = mean(iter_ASM(2:length(iter_ASM)));
 output.avgIterPrimASM_CS = mean(iter_ASM_cs(2:length(iter_ASM_cs)));
@@ -443,6 +485,8 @@ output.avgIterPrimASM_WS = mean(iter_ASM_ws(2:length(iter_ASM_ws)));
 output.avgIterPrimASM_WS_CS_New = mean(iter_ASM_ws_cs_new(2:length(iter_ASM_ws_cs_new)));
 output.avgIterWGS = mean(iter_WGS(2:length(iter_WGS)));
 output.avgIterASM_C = mean(iter_ASM_C(2:length(iter_ASM_C)));
+output.avgIterDSPASM = mean(iter_DSPASM(2:length(iter_DSPASM)));
+output.avgIterDSPWGS = mean(iter_DSPWGS(2:length(iter_DSPWGS)));
 
 output.ucTimes = ucTimes;
 output.tightTimes = tightTimes;
@@ -454,41 +498,53 @@ output.failTimesPrimASM_WS_CS_New = failTimesPrimASM_WS_CS_New;
 output.failTimesDualASM = failTimesDualASM;
 output.failTimesDualASM_CS = failTimesDualASM_CS;
 
+output.maxTimeQUAD = max(time_QUAD(2:length(time_QUAD)));
 output.maxTimeWGS = max(time_WGS(2:length(time_WGS)));
 output.maxTimeASM_C = max(time_ASM_C(2:length(time_ASM_C)));
+output.maxTimeDSPASM = max(time_DSPASM(2:length(time_DSPASM)));
+output.maxTimeDSPWGS = max(time_DSPWGS(2:length(time_DSPWGS)));
+
+output.avgTimeQUAD = mean(time_QUAD(2:length(time_QUAD)));
 output.avgTimeWGS = mean(time_WGS(2:length(time_WGS)));
 output.avgTimeASM_C = mean(time_ASM_C(2:length(time_ASM_C)));
+output.avgTimeDSPASM = mean(time_DSPASM(2:length(time_DSPASM)));
+output.avgTimeDSPWGS = mean(time_DSPWGS(2:length(time_DSPWGS)));
+
 
 output.maxDiffPrimASM = max(diff_ASM_QUAD(2:length(diff_ASM_QUAD)));
 output.maxDiffWGS = max(diff_WGS_QUAD(2:length(diff_WGS_QUAD)));
 output.maxDiffASM_C = max(diff_ASM_C_QUAD(2:length(diff_ASM_C_QUAD)));
+output.maxDiffDSPASM = max(diff_DSPASM_QUAD(2:length(diff_DSPASM_QUAD)));
+output.maxDiffDSPWGS = max(diff_DSPWGS_QUAD(2:length(diff_DSPWGS_QUAD)));
 
 output.avgDiffPrimASM = mean(diff_ASM_QUAD(2:length(diff_ASM_QUAD)));
 output.avgDiffWGS = mean(diff_WGS_QUAD(2:length(diff_WGS_QUAD)));
 output.avgDiffASM_C = mean(diff_ASM_C_QUAD(2:length(diff_ASM_C_QUAD)));
+output.avgDiffDSPASM = mean(diff_DSPASM_QUAD(2:length(diff_DSPASM_QUAD)));
+output.avgDiffDSPWGS = mean(diff_DSPWGS_QUAD(2:length(diff_DSPWGS_QUAD)));
 
-% Drawing
-figure;
-rr_draw = rrEle*ones(1,Nsim);
-subplot(2,1,1); plot(y_draw(:,1),'LineWidth',2); title('y(k)');
-hold on; plot(y_draw(:,2),'LineWidth',2);
-hold on; plot(rr_draw(1,:)); hold on; plot(rr_draw(2,:));
-subplot(2,1,2); stairs(u_draw(:,1),'LineWidth',2);title('u(k)');
-hold on; stairs(u_draw(:,2),'LineWidth',2);
-% figure; title('Iteration count')
-% plot(iter_ASM); hold on; plot(iter_ASM_cs);
-% legend('Original ASM','ASM with Constraints Selection');
-% % figure; title('Iteration count')
-% % plot(iter_ASM); hold on; plot(iter_ASM_ws);
-% % legend('Original ASM','ASM with Warm Start');
-figure;
-plot(iter_ASM,'linewidth',2); hold on; plot(iter_ASM_cs,'linewidth',2);
-hold on;plot(iter_ASM_ws_cs_new,'linewidth',2);hold on;
-plot(iter_ASM_ws,'linewidth',2);title('Iteration count')
-legend('Primal ASM','Primal ASM with CS','Primal ASM with WS','Primal ASM with new CS');
+% % Drawing
 % figure;
-% plot(iter_ASM_dual,'linewidth',2);hold on;plot(iter_ASM_dual_cs,'linewidth',2);
-% title('Iteration count')
-% legend('Dual ASM','Dual ASM with CS');
+% rr_draw = rrEle*ones(1,Nsim);
+% subplot(2,1,1); plot(y_draw(:,1),'LineWidth',2); title('y(k)');
+% hold on; plot(y_draw(:,2),'LineWidth',2);
+% hold on; plot(rr_draw(1,:)); hold on; plot(rr_draw(2,:));
+% subplot(2,1,2); stairs(u_draw(:,1),'LineWidth',2);title('u(k)');
+% hold on; stairs(u_draw(:,2),'LineWidth',2);
+% % figure; title('Iteration count')
+% % plot(iter_ASM); hold on; plot(iter_ASM_cs);
+% % legend('Original ASM','ASM with Constraints Selection');
+% % % figure; title('Iteration count')
+% % % plot(iter_ASM); hold on; plot(iter_ASM_ws);
+% % % legend('Original ASM','ASM with Warm Start');
+% figure;
+% plot(iter_ASM,'linewidth',2); hold on; plot(iter_ASM_cs,'linewidth',2);
+% hold on;plot(iter_ASM_ws_cs_new,'linewidth',2);hold on;
+% plot(iter_ASM_ws,'linewidth',2);title('Iteration count')
+% legend('Primal ASM','Primal ASM with CS','Primal ASM with WS','Primal ASM with new CS');
+% % figure;
+% % plot(iter_ASM_dual,'linewidth',2);hold on;plot(iter_ASM_dual_cs,'linewidth',2);
+% % title('Iteration count')
+% % legend('Dual ASM','Dual ASM with CS');
 
 end
