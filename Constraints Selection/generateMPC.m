@@ -51,8 +51,8 @@ end
 % Constraints with u and y
 OMEGA_L = [B;-B;Phi;-Phi];
 % Constraints specifications
-Umax = 1.9;
-Umin = -1.9;
+Umax = 0.4;
+Umin = -0.4;
 delta_U_p_ = 0.5*ones(nu,1);
 delta_U_n_ = -0.5*ones(nu,1);
 U_p_ = Umax*ones(nu,1);
@@ -65,13 +65,13 @@ for i = 1: ny
     end
 end
 if max(max(isnan(Yinfo))) == 1      % The process is unstabel
-    Ymax = 8;
-    Ymin = -8;
+    Ymax = 3;
+    Ymin = -3;
 else
     Ymax = max(max(Yinfo));
     Ymin = min(min(Yinfo));
 end
-yCoef = 0.9;
+yCoef = 0.2;
 if Ymax > 0
     Y_p_ = Ymax*yCoef*ones(ny,1);
 else
@@ -153,8 +153,8 @@ failTimesPrimASM_WS_CS_New = 0; failTimesDualASM = 0;
 failTimesDualASM_CS = 0;        failTimesWGS = 0;
 failTimesASM_C = 0;
 
-% Here we set a fixed reference
-rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
+% % Here we set a fixed reference
+% rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
 
 % % Here we try to do some EMPC approximation
 % C_empc = eye(nx,nx);
@@ -166,28 +166,29 @@ rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
 for kk = 1:Nsim;
     % r_k = rr(:,kk);        %对k时刻的参考轨迹进行更新
     
-    % Update x_k in normal simulation
-    x_k_old = x_k;
-    x_k = A_e * x_k + B_e * (u_k_1 - u_k_2);    % Prediction
-    x_k = x_k + L * (y_k - C_e * x_k);          % Correction
-    % xDelta = [xDelta;norm(x_k_old - x_k)];
-    u_k_2 = u_k_1;
-    u_k_1 = u_k;
+%     % Update x_k in normal simulation
+%     x_k_old = x_k;
+%     x_k = A_e * x_k + B_e * (u_k_1 - u_k_2);    % Prediction
+%     x_k = x_k + L * (y_k - C_e * x_k);          % Correction
+%     % xDelta = [xDelta;norm(x_k_old - x_k)];
+%     u_k_2 = u_k_1;
+%     u_k_1 = u_k;
     
     oldFinalAS = finalAS;
     oldDelta_u_M_out = delta_u_M_out_asm;
     oldLpW = lpW;
     
-    %     % Generate random x_k and u_k_1
-    %     x_k_old = x_k;
-    %     x_k = 0.4*rand(n,1)-0.2*ones(n,1);
-    %     xDelta = [xDelta;norm(x_k_old - x_k)];
-    %     % u_k_1 = 0.7*((Umax-Umin)*rand(nu,1)+Umin*ones(nu,1));
-    %     u_k_1 = zeros(nu,1);
+    % Generate random x_k and u_k_1
+    x_k_old = x_k;
+    x_k = 0.5*rand(n,1)-0.2*ones(n,1);
+    xDelta = [xDelta;norm(x_k_old - x_k)];
+    % u_k_1 = 0.7*((Umax-Umin)*rand(nu,1)+Umin*ones(nu,1));
+    u_k_1 = zeros(nu,1);
     
     % The following generate a random reference
-    % rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
-    % rrEle = 1.8*rand(ny,1)-0.9*ones(ny,1);
+    rrEle = (Ymax-Ymin)*rand(ny,1)+Ymin*ones(ny,1);
+    rrEle = 1.8*rand(ny,1)-0.9*ones(ny,1);
+    
     r_k = [];
     for i = 1:P
         r_k = [r_k;rrEle];
@@ -219,12 +220,36 @@ for kk = 1:Nsim;
     % Here we check wether the problem is too tight
     if isempty(delta_u_M_out)
         tightTimes = tightTimes + 1;
+        zoomPara = 1.3;
+        if Y_p_ > 0
+            Y_p_ = Y_p_*zoomPara;
+        else
+            Y_p_ = Y_p_/zoomPara;
+        end
+        if Y_n_ < 0
+            Y_n_ = Y_n_*zoomPara;
+        else
+            Y_n_ = Y_n_/zoomPara;
+        end
+        U_p_ = zoomPara*U_p_;
+        U_n_ = zoomPara*U_n_;
         continue;
     end
     
     % Here we check wether it's a unconstrained problem
     if min(abs(OMEGA_L*delta_u_M_out-omega_r)) > 1e-5
         ucTimes = ucTimes + 1;
+        zoomPara = 0.7;
+        if Y_p_ > 0
+            Y_p_ = Y_p_*zoomPara;
+        else
+            Y_p_ = Y_p_/zoomPara;
+        end
+        if Y_n_ < 0
+            Y_n_ = Y_n_*zoomPara;
+        else
+            Y_n_ = Y_n_/zoomPara;
+        end
         continue;
     end
     
@@ -454,12 +479,12 @@ for kk = 1:Nsim;
     xm = Ad*xm + Bd*u_k;    % States updating
     y_k = Cd*xm;            % Output updating
     
-    % Records for drawing
-    delta_u_draw(kk,:) = delta_u';
-    u_draw(kk,:) = u_k';
-    y_draw(kk,:) = y_k';
-    x_draw(1,kk) = x_k(1,1);x_draw(2,kk) = x_k(2,1);x_draw(3,kk) = x_k(3,1);
-    x_draw(4,kk) = x_k(4,1);x_draw(5,kk) = x_k(5,1);
+%     % Records for drawing
+%     delta_u_draw(kk,:) = delta_u';
+%     u_draw(kk,:) = u_k';
+%     y_draw(kk,:) = y_k';
+%     x_draw(1,kk) = x_k(1,1);x_draw(2,kk) = x_k(2,1);x_draw(3,kk) = x_k(3,1);
+%     x_draw(4,kk) = x_k(4,1);x_draw(5,kk) = x_k(5,1);
     
 end
 

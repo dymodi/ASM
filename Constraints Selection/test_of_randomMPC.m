@@ -17,7 +17,7 @@ fopen(serialPort);                   %打开串口s
 
 %% Choose the solver
 solverSwitch.QUAD = 1;
-solverSwitch.ASM = 1;
+solverSwitch.ASM = 0;
 solverSwitch.ASM_CS = 0;
 solverSwitch.ASM_CS_NEW = 0;
 solverSwitch.ASM_WS = 0;
@@ -44,8 +44,10 @@ Nsim = 30;         % Simulation length
 
 Q = 10;
 R = 1;
-testSizeIO = 5;
-testSizeMP = 5;
+testSizeIO = 1;
+testSizeMP = 10;
+IOlabel = zeros(testSizeIO,1);
+MPlabel = zeros(testSizeMP,1);
 
 if solverSwitch.QUAD == 1
     dataMaxTimeQUAD = zeros(testSizeIO,testSizeMP);
@@ -126,13 +128,20 @@ dataTightTimes = zeros(testSizeIO,testSizeMP);  % Unsolvable problems
 dataSolveTimes = zeros(testSizeIO,testSizeMP);  % Actual solve times
 
 for i = 1:testSizeIO
-% for i = 2:2
-    nu = i;     % Number of inputs variables
-    ny = i;     % Number of outputs variables
+    %for i = 4:4
+    nu = 2;     % Number of inputs variables
+    ny = 2;     % Number of outputs variables
+    %     nu = i+1;     % Number of inputs variables
+    %     ny = i+1;     % Number of outputs variables
     nx = nu*2;    % Number of states varaibles
+    IOlabel(i) = nu;
     for j = 1:testSizeMP
-        P = j*2+2;
+        % P = 7;
+        % M = 3;
+        P = 3*j+2;
         M = j+2;
+        MPlabel(j) = M;
+        fprintf('i:%d, j:%d \n',i,j)
         output = generateMPC(nu,ny,nx,Ts,Nsim,P,M,Q,R,solverSwitch);
         dataUcTimes(i,j) = output.ucTimes;
         dataTightTimes(i,j) = output.tightTimes;
@@ -222,19 +231,21 @@ fclose(serialPort);                   %打开串口s
 figure;
 [row,col] = size(dataMaxTimeDSPASM);
 d1 = dataMaxTimeDSPASM(:); d2 = dataMaxTimeDSPWGS(:);
-semilogy(d1);hold on;semilogy(d2,'o-')
-legend('MaxTimeASM C','MaxTimeWGS');title('Maximum running time');
 if row == 1
+    semilogy(MPlabel,d1);hold on;semilogy(MPlabel,d2,'o-');
     xlabel('Number of horizon');
 elseif col == 1
+    semilogy(IOlabel,d1);hold on;semilogy(IOlabel,d2,'o-');
     xlabel('Number of inputs/outputs.');
 end
+legend('MaxTimeASM','MaxTimeWGS');title('Maximum running time');
 figure;
 d1 = dataAvgTimeDSPASM(:); d2 = dataAvgTimeDSPWGS(:);
-semilogy(d1);hold on;semilogy(d2,'o-')
-legend('AvgTimeASM C','AvgTimeWGS');title('Average running time');
 if row == 1
+    semilogy(MPlabel,d1);hold on;semilogy(MPlabel,d2,'o-');
     xlabel('Number of horizon');
 elseif col == 1
+    semilogy(IOlabel,d1);hold on;semilogy(IOlabel,d2,'o-');
     xlabel('Number of inputs/outputs.');
 end
+legend('AvgTimeASM','AvgTimeWGS');title('Average running time');

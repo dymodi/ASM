@@ -20,7 +20,7 @@ time_QUAD = []; time_Single = []; time_Double = [];
 iter_QUAD = []; iter_Single = []; iter_Double = [];
 u_Record = []; x_Record = []; y_Record = [];
 
-load aircraftModel
+load .\modelData\aircraftModel
 
 options.Algorithm='interior-point-convex';
 options.MaxIter=1000;
@@ -107,17 +107,17 @@ figure;
 subplot(2,1,1);plot(u_Record');title('Aircraft,u');
 subplot(2,1,2);plot(y_Record');title('Aircraft,y');
 figure; 
-plot(diff_Single_QUAD);hold on;title('Difference between WGS and QUADPROG');
-plot(diff_Double_QUAD);hold on;
+plot(diff_Single_QUAD,'-o');hold on;title('Difference between WGS and QUADPROG');
+plot(diff_Double_QUAD,'-x');hold on;
 legend('diff Single QUAD','diff Double QUAD');
 figure; 
-semilogy(time_Single);hold on; title('Runtime of WGS and QUADPROG');
-semilogy(time_Double);hold on;
+semilogy(time_Single,'-o');hold on; title('Runtime of WGS and QUADPROG');
+semilogy(time_Double,'-x');hold on;
 semilogy(time_QUAD);hold on;
 legend('time Single','time Double','time QUAD');
 figure; 
-plot(iter_Single);hold on;    title('Iterations of WGS and QUADPROG');
-plot(iter_Double);hold on;
+plot(iter_Single,'-o');hold on;    title('Iterations of WGS and QUADPROG');
+plot(iter_Double,'-x');hold on;
 plot(iter_QUAD); hold on;
 legend('iter Single','iter Double','iter QUAD');
 

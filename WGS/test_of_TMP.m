@@ -95,19 +95,19 @@ figure;
 subplot(2,1,1);plot(u_Record');title('TMP model,u');
 subplot(2,1,2);plot(y_Record');title('TMP model,y');
 figure; 
-plot(diff_Single_QUAD);hold on;title('Difference between WGS and QUADPROG');
-plot(diff_Double_QUAD);hold on;
+plot(diff_Single_QUAD,'-o');hold on;title('Difference between WGS and QUADPROG');
+plot(diff_Double_QUAD,'-x');hold on;
 legend('diff Single QUAD','diff Double QUAD');
 figure; 
-semilogy(time_QUAD);hold on; title('Runtime of WGS and QUADPROG');
-semilogy(time_Single);hold on;
-semilogy(time_Double);hold on;
-legend('time QUAD','time Single','time Double');
+semilogy(time_Single,'-o');hold on;title('Runtime of WGS and QUADPROG');
+semilogy(time_Double,'-x');hold on;
+semilogy(time_QUAD);hold on;
+legend('time Single','time Double','time QUAD');
 figure; 
-plot(iter_QUAD);hold on;    title('Iterations of WGS and QUADPROG');
-plot(iter_Single);hold on;
-plot(iter_Double); hold on;
-legend('iter QUAD','iter Single','iter Double');
+plot(iter_Single,'-o');hold on;title('Iterations of WGS and QUADPROG');
+plot(iter_Double,'-x'); hold on;
+plot(iter_QUAD);hold on;    
+legend('iter Single','iter Double','iter QUAD');
 
 
 
